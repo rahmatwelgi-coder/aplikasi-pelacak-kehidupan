@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User specific settings, preferences and metrics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "budget": { "type": "number" },
+        "month": { "type": "number" },
+        "year": { "type": "number" },
+        "streak": { "type": "number" },
+        "lastDate": { "type": "string" },
+        "customWkXP": { "type": "object" },
+        "catBudget": { "type": "object" },
+        "expenses": { "type": "object" },
+        "checkedToday": { "type": "object" },
+        "customExp": { "type": "array" },
+        "catatan": { "type": "object" },
+        "workouts": { "type": "object" },
+        "habits": { "type": "array" }
+      },
+      "required": ["uid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "The root document for a user containing all their settings and log data"
+    }
+  }
+}

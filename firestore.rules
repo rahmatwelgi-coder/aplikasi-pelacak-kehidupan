@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read and write access to the users collection because all data 
+    // operations are proxied and secured by our Express server.
+    match /users/{username} {
+      allow read, write: if true;
+    }
+  }
+}

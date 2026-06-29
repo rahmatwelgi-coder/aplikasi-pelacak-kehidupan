@@ -1,0 +1,6 @@
+{
+  "name": "Life Tracker",
+  "description": "Durable online multi-user personal health, workout, expense, and habit tracker synchronized in real-time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
