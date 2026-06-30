@@ -7,6 +7,7 @@ import { useState } from "react";
 import { AppState, WorkoutLog } from "../types";
 import { WTYPES, DAYS_S, MONTHS_ID } from "../constants";
 import { fmtRp, fmtK, daysInMonth, totalWkXP } from "../utils";
+import { getTranslation } from "../translations";
 import {
   ResponsiveContainer,
   BarChart,
@@ -35,6 +36,9 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
   const [wkSets, setWkSets] = useState("4");
   const [wkReps, setWkReps] = useState("12");
   const [wkNote, setWkNote] = useState("");
+
+  const isEn = state.lang === "en";
+  const t = getTranslation(state.lang);
 
   const days = daysInMonth(state.year, state.month);
   const wk = state.workouts || {};
@@ -91,7 +95,10 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
     }
 
     onChange({ workouts: updatedWorkouts, streak: newStreak });
-    showToast(`💪 +${state.customWkXP?.[selType] || typeDef.xp} XP — ${typeDef.label} tersimpan ☁️`);
+    showToast(isEn 
+      ? `💪 +${state.customWkXP?.[selType] || typeDef.xp} XP — ${typeDef.label} saved ☁️` 
+      : `💪 +${state.customWkXP?.[selType] || typeDef.xp} XP — ${typeDef.label} tersimpan ☁️`
+    );
   };
 
   const handleDeleteWorkout = () => {
@@ -100,8 +107,12 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
     delete updatedWorkouts[selDate];
     onChange({ workouts: updatedWorkouts });
     setSelDate(null);
-    showToast("🗑️ Log workout berhasil dihapus");
+    showToast(isEn ? "🗑️ Workout log deleted successfully" : "🗑️ Log workout berhasil dihapus");
   };
+
+  const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const DAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const DAYS = isEn ? DAYS_EN : DAYS_S;
 
   // Recharts data calculations
   // 1. Weekly Workout Volume (5 weeks)
@@ -119,7 +130,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
       }
     }
     return {
-      week: `Minggu ${wIndex + 1}`,
+      week: isEn ? `Week ${wIndex + 1}` : `Minggu ${wIndex + 1}`,
       Durasi: durSum,
       Sesi: sessionCount * 10, // scaled x10 as in original
     };
@@ -149,10 +160,10 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { i: "🏋️", v: wDone, l: "Sesi Aktif", c: "text-[#B8860B]", bg: "bg-amber-50/40 border-amber-100" },
-          { i: "⏱️", v: `${wMnt}m`, l: "Total Menit", c: "text-emerald-600", bg: "bg-emerald-50/30 border-emerald-100" },
+          { i: "🏋️", v: wDone, l: t.activeSessions, c: "text-[#B8860B]", bg: "bg-amber-50/40 border-amber-100" },
+          { i: "⏱️", v: `${wMnt}${isEn ? " min" : "m"}`, l: isEn ? "Total Minutes" : "Total Menit", c: "text-emerald-600", bg: "bg-emerald-50/30 border-emerald-100" },
           { i: "⭐", v: `${xp} XP`, l: "Total XP", c: "text-indigo-600", bg: "bg-indigo-50/30 border-indigo-100" },
-          { i: "🔥", v: state.streak || 0, l: "Streak", c: "text-rose-600", bg: "bg-rose-50/40 border-rose-100" },
+          { i: "🔥", v: state.streak || 0, l: t.streak, c: "text-rose-600", bg: "bg-rose-50/40 border-rose-100" },
         ].map((k, i) => (
           <div key={i} className={`bg-white border border-zinc-200/50 rounded-2xl p-4 shadow-sm text-center ${k.bg} transition-all duration-300 hover:scale-[1.02]`}>
             <div className="text-2xl mb-1">{k.i}</div>
@@ -169,13 +180,13 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 lg:col-span-7">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B]">
-              Kalender {MONTHS_ID[state.month]} {state.year}
+              {isEn ? "Calendar" : "Kalender"} {isEn ? MONTHS_EN[state.month] : MONTHS_ID[state.month]} {state.year}
             </h3>
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase">Ketuk hari untuk isi log</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase">{isEn ? "Tap on a day to fill the log" : "Ketuk hari untuk isi log"}</span>
           </div>
 
           <div className="grid grid-cols-7 gap-1.5">
-            {DAYS_S.map((d) => (
+            {DAYS.map((d) => (
               <div key={d} className="text-center text-[9px] font-black text-zinc-400 py-1 uppercase tracking-wider">
                 {d}
               </div>
@@ -197,7 +208,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
                 <div
                   key={d.date}
                   onClick={() => handlePickDate(d.date)}
-                  className={`border rounded-xl p-1 text-center min-h-[52px] flex flex-col justify-between cursor-pointer transition-all ${
+                  className={`relative border rounded-xl p-1 text-center min-h-[52px] flex flex-col justify-between cursor-pointer transition-all ${
                     isFuture
                       ? "opacity-20 cursor-not-allowed bg-zinc-50 border-transparent"
                       : isSelected
@@ -228,6 +239,17 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
                   >
                     {d.day}
                   </span>
+                  {state.moodLog?.[d.date] && (
+                    <div
+                      className={`absolute bottom-1 left-1.5 w-1.5 h-1.5 rounded-full ${
+                        state.moodLog[d.date] === 1 ? "bg-zinc-400" :
+                        state.moodLog[d.date] === 2 ? "bg-blue-400" :
+                        state.moodLog[d.date] === 3 ? "bg-yellow-400" :
+                        state.moodLog[d.date] === 4 ? "bg-emerald-400" :
+                        "bg-rose-500"
+                      }`}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -250,10 +272,10 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
             <div className="flex justify-between items-center mb-4">
               <div>
                 <div className="text-[9px] text-zinc-400 uppercase tracking-widest font-extrabold">
-                  Log Workout
+                  {isEn ? "Log Workout" : "Log Workout"}
                 </div>
                 <div className="text-sm font-black text-[#B8860B]">
-                  {selDate || "Pilih hari dulu 🗓️"}
+                  {selDate || (isEn ? "Select a day first 🗓️" : "Pilih hari dulu 🗓️")}
                 </div>
               </div>
               {selectedLog && (
@@ -261,14 +283,56 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
                   onClick={handleDeleteWorkout}
                   className="bg-rose-50 border border-rose-100 text-rose-600 hover:bg-rose-100 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer"
                 >
-                  🗑️ Hapus
+                  {isEn ? "🗑️ Delete" : "🗑️ Hapus"}
                 </button>
               )}
             </div>
 
-            {/* Type selector buttons */}
+            {/* Mood Picker */}
+            <div className="mb-5">
+              <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">
+                {isEn ? "Today's Mood" : "Mood Hari Ini"}
+              </div>
+              <div className="flex items-center gap-3">
+                {[
+                  { emoji: "😴", value: 1 },
+                  { emoji: "😐", value: 2 },
+                  { emoji: "🙂", value: 3 },
+                  { emoji: "😊", value: 4 },
+                  { emoji: "🔥", value: 5 },
+                ].map((item) => {
+                  const isSelected = selDate ? state.moodLog?.[selDate] === item.value : false;
+                  return (
+                    <button
+                      key={item.value}
+                      disabled={!selDate}
+                      onClick={() => {
+                        if (!selDate) return;
+                        const currentMoods = state.moodLog || {};
+                        onChange({
+                          moodLog: {
+                            ...currentMoods,
+                            [selDate]: item.value,
+                          },
+                        });
+                        showToast(isEn ? `Today's mood set to ${item.emoji}!` : `Mood hari ini diatur ke ${item.emoji}!`);
+                      }}
+                      className={`w-10 h-10 rounded-xl text-lg flex items-center justify-center transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-amber-100 border-2 border-[#C9A84C] scale-110"
+                          : "bg-zinc-50 border border-zinc-200 opacity-60 hover:opacity-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                      }`}
+                    >
+                      {item.emoji}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Tipe Latihan */}
             <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2.5">
-              Tipe Latihan
+              {isEn ? "Workout Type" : "Tipe Latihan"}
             </div>
             <div className="grid grid-cols-3 gap-2 mb-5">
               {WTYPES.map((t) => (
@@ -293,7 +357,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
             <div className="grid grid-cols-2 gap-3.5 mb-4">
               <div>
                 <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1.5 font-bold">
-                  Durasi (mnt)
+                  {isEn ? "Duration (min)" : "Durasi (mnt)"}
                 </label>
                 <input
                   type="number"
@@ -321,7 +385,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
 
               <div>
                 <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1.5 font-bold">
-                  Reps / Jarak (Km)
+                  {isEn ? "Reps / Distance (Km)" : "Reps / Jarak (Km)"}
                 </label>
                 <input
                   type="number"
@@ -335,7 +399,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
 
               <div>
                 <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1.5 font-bold">
-                  XP Didapat
+                  {isEn ? "XP Earned" : "XP Didapat"}
                 </label>
                 <div
                   className="border rounded-xl py-1.5 px-3 text-center transition-all shadow-sm"
@@ -350,14 +414,14 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
                   >
                     +{state.customWkXP?.[selType] || selectedTypeDef.xp}
                   </div>
-                  <div className="text-[8px] text-zinc-400 uppercase tracking-widest font-extrabold">Otomatis</div>
+                  <div className="text-[8px] text-zinc-400 uppercase tracking-widest font-extrabold">{isEn ? "Automatic" : "Otomatis"}</div>
                 </div>
               </div>
             </div>
 
             <div>
               <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1.5 font-bold">
-                Catatan / PR Baru
+                {isEn ? "Notes / New PR" : "Catatan / PR Baru"}
               </label>
               <input
                 type="text"
@@ -378,7 +442,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
             disabled={!selDate}
             className="w-full bg-[#C9A84C] text-[#1a1500] hover:bg-[#B8860B] hover:text-white font-extrabold py-3 px-4 rounded-2xl text-xs mt-5 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer active:scale-98 shadow-sm"
           >
-            {selDate ? "💪 Simpan Workout" : "💪 Pilih hari dulu di kalender"}
+            {selDate ? (isEn ? "💪 Save Workout" : "💪 Simpan Workout") : (isEn ? "💪 Select a day in calendar first" : "💪 Pilih hari dulu di kalender")}
           </button>
         </div>
       </div>
@@ -387,7 +451,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
       {/* 1. Weekly Volume */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
         <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4">
-          Volume Mingguan (menit)
+          {isEn ? "Weekly Volume (minutes)" : "Volume Mingguan (menit)"}
         </h3>
         <div className="h-[180px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -396,14 +460,14 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
               <YAxis stroke="#a1a1aa" fontSize={8} tickLine={false} />
               <RechartsTooltip
                 formatter={(value: any, name: string) => [
-                  name === "Sesi" ? `${value / 10} sesi` : `${value} mnt`,
+                  name === "Sesi" || name === "Sessions" ? `${value / 10} ${isEn ? "sessions" : "sesi"}` : `${value} ${isEn ? "min" : "mnt"}`,
                   name,
                 ]}
                 contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
               />
               <RechartsLegend iconSize={8} wrapperStyle={{ fontSize: "9px", fontWeight: "bold" }} />
-              <Bar dataKey="Durasi" fill="#C9A84C" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Sesi" fill="#3498DB" radius={[4, 4, 0, 0]} />
+              <Bar dataKey={isEn ? "Duration" : "Durasi"} fill="#C9A84C" radius={[4, 4, 0, 0]} />
+              <Bar dataKey={isEn ? "Sessions" : "Sesi"} fill="#3498DB" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -413,7 +477,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
         {/* Durasi per hari */}
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4">
-            Durasi Latihan per Hari
+            {isEn ? "Daily Workout Duration" : "Durasi Latihan per Hari"}
           </h3>
           <div className="h-[150px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -421,10 +485,10 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
                 <XAxis dataKey="day" stroke="#71717a" fontSize={8} tickLine={false} />
                 <YAxis stroke="#a1a1aa" fontSize={8} tickLine={false} />
                 <RechartsTooltip
-                  formatter={(value: any) => [`${value} mnt`, "Durasi"]}
+                  formatter={(value: any) => [`${value} ${isEn ? "min" : "mnt"}`, isEn ? "Duration" : "Durasi"]}
                   contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
                 />
-                <Line type="monotone" dataKey="Durasi" stroke="#C9A84C" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey={isEn ? "Duration" : "Durasi"} stroke="#C9A84C" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -433,7 +497,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
         {/* XP per hari */}
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4">
-            Workout XP per Hari
+            {isEn ? "Daily Workout XP" : "Workout XP per Hari"}
           </h3>
           <div className="h-[150px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -454,7 +518,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
       {/* Workout History */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
         <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4">
-          Riwayat Workout Bulan Ini
+          {isEn ? "Workout History This Month" : "Riwayat Workout Bulan Ini"}
         </h3>
         <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1 select-none">
           {historyLogs.length > 0 ? (
@@ -472,7 +536,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
                       {typeDef.label}
                     </div>
                     <div className="text-[9px] text-zinc-400 font-bold uppercase mt-0.5">
-                      {dateKey} &bull; {wLog.dur || 0}m &bull; {wLog.sets || 0} sets &bull;{" "}
+                      {dateKey} &bull; {wLog.dur || 0}{isEn ? "m" : "mnt"} &bull; {wLog.sets || 0} sets &bull;{" "}
                       {wLog.reps || 0} reps {wLog.note && `&bull; "${wLog.note}"`}
                     </div>
                   </div>
@@ -485,7 +549,7 @@ export default function WorkoutTab({ state, onChange, showToast }: WorkoutTabPro
           ) : (
             <div className="text-center py-8 text-xs text-zinc-400 italic">
               <span className="text-xl mb-1 block">💪</span>
-              Belum ada log workout.
+              {isEn ? "No workouts logged yet." : "Belum ada log workout."}
             </div>
           )}
         </div>

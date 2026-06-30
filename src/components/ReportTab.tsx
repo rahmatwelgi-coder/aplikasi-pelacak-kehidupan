@@ -6,6 +6,7 @@
 import { AppState, Habit } from "../types";
 import { ECATS, WTYPES, MONTHS_ID } from "../constants";
 import { fmtRp, fmtK, totalExp, totalWkXP } from "../utils";
+import { getTranslation } from "../translations";
 import {
   ResponsiveContainer,
   BarChart,
@@ -24,10 +25,19 @@ interface ReportTabProps {
 }
 
 export default function ReportTab({ state }: ReportTabProps) {
-  const currentMonthName = MONTHS_ID[state.month];
+  const isEn = state.lang === "en";
+  const t = getTranslation(state.lang);
+
+  const MONTHS_EN = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  const monthsList = isEn ? MONTHS_EN : MONTHS_ID;
+
+  const currentMonthName = monthsList[state.month];
   const prevMonthIndex = state.month === 0 ? 11 : state.month - 1;
   const prevMonthYear = state.month === 0 ? state.year - 1 : state.year;
-  const prevMonthName = MONTHS_ID[prevMonthIndex];
+  const prevMonthName = monthsList[prevMonthIndex];
 
   const currentMonthPrefix = `${state.year}-${String(state.month + 1).padStart(2, "0")}`;
   const prevMonthKey = `${prevMonthYear}-${String(prevMonthIndex + 1).padStart(2, "0")}`;
@@ -48,14 +58,32 @@ export default function ReportTab({ state }: ReportTabProps) {
     ...prevCustom.map(e => e.name)
   ]));
 
+  const getCategoryLabel = (catId: string, defaultLabel: string) => {
+    if (!isEn) return defaultLabel;
+    const labelMap: Record<string, string> = {
+      "makan": "Daily Food / Meals",
+      "rokok": "Cigarettes / Smoking",
+      "hiburan": "Entertainment / Vacation",
+      "jajanan": "Snacks & Treats",
+      "bensin": "Motorcycle Fuel / Gas",
+      "outfit": "Clothing & Furniture",
+      "kampus": "Campus & Organization",
+      "laundry": "Laundry Services",
+      "darurat": "Emergency Fund",
+      "tabungan": "Locked Savings 🔒"
+    };
+    return labelMap[catId] || defaultLabel;
+  };
+
   const categoriesData = [
     ...ECATS.map((c) => {
       const currentVal = state.expenses?.[c.id] || 0;
       const prevVal = prevMonthSnap?.expenses?.[c.id] || 0;
+      const translatedLabel = getCategoryLabel(c.id, c.label);
       return {
         id: c.id,
-        name: c.label.split(" ")[0],
-        fullName: c.label,
+        name: translatedLabel.split(" ")[0],
+        fullName: translatedLabel,
         icon: c.icon,
         color: c.color,
         current: currentVal,
@@ -191,66 +219,163 @@ export default function ReportTab({ state }: ReportTabProps) {
   const totalMonthlyXP = workoutXPMonth + habitXPMonth;
 
   const xpPieData = [
-    { name: "Workout XP", value: workoutXPMonth, color: "#9B59B6" },
-    { name: "Habit XP", value: habitXPMonth, color: "#2ECC71" },
+    { name: isEn ? "Workout XP" : "Workout XP", value: workoutXPMonth, color: "#9B59B6" },
+    { name: isEn ? "Habit XP" : "Habit XP", value: habitXPMonth, color: "#2ECC71" },
   ].filter((item) => item.value > 0);
 
   // --- 5. AUTOMATED INSIGHTS GENERATION ---
   const financialInsights = [];
   const pctUsed = state.budget > 0 ? Math.round((currentTotalExpense / state.budget) * 100) : 0;
   if (pctUsed > 100) {
-    financialInsights.push(`❌ Pengeluaranmu melampaui anggaran sebesar **${fmtRp(currentTotalExpense - state.budget)}** (${pctUsed}%). Batasi pengeluaran segera!`);
+    financialInsights.push(
+      isEn
+        ? `❌ Your spending has exceeded the budget by **${fmtRp(currentTotalExpense - state.budget)}** (${pctUsed}%). Limit your spending immediately!`
+        : `❌ Pengeluaranmu melampaui anggaran sebesar **${fmtRp(currentTotalExpense - state.budget)}** (${pctUsed}%). Batasi pengeluaran segera!`
+    );
   } else if (pctUsed > 85) {
-    financialInsights.push(`⚠️ Anggaran hampir habis (**${pctUsed}%** terpakai). Sisa anggaran: **${fmtRp(state.budget - currentTotalExpense)}**.`);
+    financialInsights.push(
+      isEn
+        ? `⚠️ Budget is almost exhausted (**${pctUsed}%** used). Remaining budget: **${fmtRp(state.budget - currentTotalExpense)}**.`
+        : `⚠️ Anggaran hampir habis (**${pctUsed}%** terpakai). Sisa anggaran: **${fmtRp(state.budget - currentTotalExpense)}**.`
+    );
   } else {
-    financialInsights.push(`🟢 Keuangan sehat! Baru terpakai **${pctUsed}%** dari anggaranmu. Tersisa **${fmtRp(state.budget - currentTotalExpense)}**.`);
+    financialInsights.push(
+      isEn
+        ? `🟢 Healthy finances! Only **${pctUsed}%** of your budget is used. Remaining: **${fmtRp(state.budget - currentTotalExpense)}**.`
+        : `🟢 Keuangan sehat! Baru terpakai **${pctUsed}%** dari anggaranmu. Tersisa **${fmtRp(state.budget - currentTotalExpense)}**.`
+    );
   }
 
   if (expenseDiff < 0) {
-    financialInsights.push(`📈 Pengeluaranmu **turun ${Math.abs(expenseDiffPct)}%** (${fmtRp(Math.abs(expenseDiff))}) dibanding bulan lalu.`);
+    financialInsights.push(
+      isEn
+        ? `📈 Your expenses **decreased by ${Math.abs(expenseDiffPct)}%** (${fmtRp(Math.abs(expenseDiff))}) compared to last month.`
+        : `📈 Pengeluaranmu **turun ${Math.abs(expenseDiffPct)}%** (${fmtRp(Math.abs(expenseDiff))}) dibanding bulan lalu.`
+    );
   } else if (expenseDiff > 0) {
-    financialInsights.push(`📉 Pengeluaranmu **naik ${expenseDiffPct}%** (${fmtRp(expenseDiff)}) dibanding bulan lalu.`);
+    financialInsights.push(
+      isEn
+        ? `📉 Your expenses **increased by ${expenseDiffPct}%** (${fmtRp(expenseDiff)}) compared to last month.`
+        : `📉 Pengeluaranmu **naik ${expenseDiffPct}%** (${fmtRp(expenseDiff)}) dibanding bulan lalu.`
+    );
   }
 
   // Find biggest spending category
   const activeSpendCategories = categoriesData.filter((c) => c.id !== "tabungan" && c.current > 0);
   if (activeSpendCategories.length > 0) {
     const biggest = [...activeSpendCategories].sort((a, b) => b.current - a.current)[0];
-    financialInsights.push(`🔥 Pengeluaran terbesar bulan ini berada pada kategori **${biggest.fullName}** sebesar **${fmtRp(biggest.current)}**.`);
+    financialInsights.push(
+      isEn
+        ? `🔥 Your biggest spending this month is in the **${biggest.fullName}** category, totaling **${fmtRp(biggest.current)}**.`
+        : `🔥 Pengeluaran terbesar bulan ini berada pada kategori **${biggest.fullName}** sebesar **${fmtRp(biggest.current)}**.`
+    );
   }
 
   const workoutInsights = [];
   if (totalSessions >= 16) {
-    workoutInsights.push(`👑 **Konsistensi Luar Biasa!** Kamu telah menyelesaikan **${totalSessions} sesi** workout bulan ini. Kamu berada di jalur atlet pro!`);
+    workoutInsights.push(
+      isEn
+        ? `👑 **Outstanding Consistency!** You have completed **${totalSessions} sessions** of workouts this month. You're on track like a pro!`
+        : `👑 **Konsistensi Luar Biasa!** Kamu telah menyelesaikan **${totalSessions} sesi** workout bulan ini. Kamu berada di jalur atlet pro!`
+    );
   } else if (totalSessions >= 8) {
-    workoutInsights.push(`💪 **Bagus Sekali!** Kamu menyelesaikan **${totalSessions} sesi** latihan. Pertahankan performa ini!`);
+    workoutInsights.push(
+      isEn
+        ? `💪 **Great Job!** You completed **${totalSessions} sessions** of workouts. Keep up the performance!`
+        : `💪 **Bagus Sekali!** Kamu menyelesaikan **${totalSessions} sesi** latihan. Pertahankan performa ini!`
+    );
   } else if (totalSessions > 0) {
-    workoutInsights.push(`🏃 **Masih Awal!** Baru terkumpul **${totalSessions} sesi** workout. Yuk tingkatkan frekuensi latihanmu.`);
+    workoutInsights.push(
+      isEn
+        ? `🏃 **Early Stages!** Only **${totalSessions} sessions** of workouts logged. Let's increase your workout frequency.`
+        : `🏃 **Masih Awal!** Baru terkumpul **${totalSessions} sesi** workout. Yuk tingkatkan frekuensi latihanmu.`
+    );
   } else {
-    workoutInsights.push(`😴 **Belum Ada Log:** Kamu belum mencatat sesi workout aktif bulan ini. Ayo mulai gerakan tubuhmu!`);
+    workoutInsights.push(
+      isEn
+        ? `😴 **No Logs Yet:** You haven't recorded any active workout sessions this month. Let's get moving!`
+        : `😴 **Belum Ada Log:** Kamu belum mencatat sesi workout aktif bulan ini. Ayo mulai gerakan tubuhmu!`
+    );
+  }
+
+  // Favorite workout translations
+  const translateWorkoutLabel = (typeId: string, defaultLabel: string) => {
+    if (!isEn) return defaultLabel;
+    const wMap: Record<string, string> = {
+      push: "Push Day",
+      pull: "Pull Day",
+      legs: "Legs",
+      cardio: "Cardio",
+      core: "Core/Abs",
+      full: "Full Body",
+      rest: "Rest Day"
+    };
+    return wMap[typeId] || defaultLabel;
+  };
+
+  let favTypeLabelTrans = favTypeLabel;
+  if (favType !== "—" && isEn) {
+    const tDef = WTYPES.find((x) => x.id === favType);
+    favTypeLabelTrans = tDef ? `${tDef.icon} ${translateWorkoutLabel(favType, tDef.label)}` : favType;
   }
 
   if (favType !== "—") {
-    workoutInsights.push(`🎯 Fokus latihan terfavoritmu bulan ini adalah **${favTypeLabel}** dengan **${maxCount} sesi**.`);
+    workoutInsights.push(
+      isEn
+        ? `🎯 Your favorite workout focus this month is **${favTypeLabelTrans}** with **${maxCount} sessions**.`
+        : `🎯 Fokus latihan terfavoritmu bulan ini adalah **${favTypeLabel}** dengan **${maxCount} sesi**.`
+    );
   }
 
   const habitInsights = [];
   if (habitCompletionRate >= 80) {
-    habitInsights.push(`🌟 **Dewa Disiplin!** Tingkat keberhasilan habit mencapai **${habitCompletionRate}%**. Kebiasaan positifmu terbentuk sangat solid!`);
+    habitInsights.push(
+      isEn
+        ? `🌟 **Discipline Deity!** Habit completion rate reached **${habitCompletionRate}%**. Your positive habits are forming solid ground!`
+        : `🌟 **Dewa Disiplin!** Tingkat keberhasilan habit mencapai **${habitCompletionRate}%**. Kebiasaan positifmu terbentuk sangat solid!`
+    );
   } else if (habitCompletionRate >= 50) {
-    habitInsights.push(`👍 **Cukup Konsisten!** Rasio habit bulananmu di angka **${habitCompletionRate}%**. Upayakan lebih disiplin.`);
+    habitInsights.push(
+      isEn
+        ? `👍 **Quite Consistent!** Your monthly habit completion rate is at **${habitCompletionRate}%**. Aim for more discipline.`
+        : `👍 **Cukup Konsisten!** Rasio habit bulananmu di angka **${habitCompletionRate}%**. Upayakan lebih disiplin.`
+    );
   } else if (habitCompletionRate > 0) {
-    habitInsights.push(`⚠️ **Butuh Perhatian:** Keberhasilan habit baru **${habitCompletionRate}%**. Mulai dari 1 habit sederhana setiap pagi.`);
+    habitInsights.push(
+      isEn
+        ? `⚠️ **Needs Attention:** Habit completion rate is only **${habitCompletionRate}%**. Start with 1 simple habit each morning.`
+        : `⚠️ **Butuh Perhatian:** Keberhasilan habit baru **${habitCompletionRate}%**. Mulai dari 1 habit sederhana setiap pagi.`
+    );
   }
+
+  const translateHabitName = (name: string) => {
+    if (!isEn) return name;
+    const habitMap: Record<string, string> = {
+      "Olahraga 30 menit": "Exercise 30 mins",
+      "Baca buku": "Read a book",
+      "No sosmed pagi": "No social media morning",
+      "Minum 8 gelas air": "Drink 8 glasses of water",
+      "Tidur sebelum 23.00": "Sleep before 23:00"
+    };
+    return habitMap[name] || name;
+  };
 
   if (individualHabitRates.length > 0) {
     const bestHabit = individualHabitRates[0];
     const worstHabit = individualHabitRates[individualHabitRates.length - 1];
     if (bestHabit.rate > 0) {
-      habitInsights.push(`🔥 Kebiasaan paling disiplin: **${bestHabit.icon} ${bestHabit.name}** (${bestHabit.rate}% selesai).`);
+      habitInsights.push(
+        isEn
+          ? `🔥 Most disciplined habit: **${bestHabit.icon} ${translateHabitName(bestHabit.name)}** (${bestHabit.rate}% completed).`
+          : `🔥 Kebiasaan paling disiplin: **${bestHabit.icon} ${bestHabit.name}** (${bestHabit.rate}% selesai).`
+      );
     }
     if (worstHabit.rate < 40 && worstHabit.id !== bestHabit.id) {
-      habitInsights.push(`💡 Perlu ditingkatkan: **${worstHabit.icon} ${worstHabit.name}** baru mencapai (${worstHabit.rate}%).`);
+      habitInsights.push(
+        isEn
+          ? `💡 Needs improvement: **${worstHabit.icon} ${translateHabitName(worstHabit.name)}** reached only (${worstHabit.rate}%).`
+          : `💡 Perlu ditingkatkan: **${worstHabit.icon} ${worstHabit.name}** baru mencapai (${worstHabit.rate}%).`
+      );
     }
   }
 
@@ -261,10 +386,10 @@ export default function ReportTab({ state }: ReportTabProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-200/60 pb-5 mb-5">
           <div>
             <h3 className="text-lg font-black text-[#B8860B] uppercase tracking-wide">
-              Laporan Kinerja Bulanan
+              {isEn ? "Monthly Performance Analytics" : "Laporan Kinerja Bulanan"}
             </h3>
             <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black mt-1">
-              Rangkuman Performa & Analisis &bull; {currentMonthName} {state.year}
+              {isEn ? "Performance Summary & Analysis" : "Rangkuman Performa & Analisis"} &bull; {currentMonthName} {state.year}
             </p>
           </div>
           <span className="bg-amber-50 text-[#B8860B] border border-amber-200 px-3.5 py-1.5 rounded-full text-xs font-mono font-black">
@@ -277,7 +402,7 @@ export default function ReportTab({ state }: ReportTabProps) {
             <div className="text-2xl font-black font-mono text-rose-600">
               {fmtK(currentTotalExpense)}
             </div>
-            <div className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest mt-1">Pengeluaran</div>
+            <div className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest mt-1">{isEn ? "Expenses" : "Pengeluaran"}</div>
           </div>
           <div>
             <div className="text-2xl font-black font-mono text-emerald-600">
@@ -287,7 +412,7 @@ export default function ReportTab({ state }: ReportTabProps) {
           </div>
           <div>
             <div className="text-2xl font-black font-mono text-blue-600">
-              {totalSessions} Sesi
+              {totalSessions} {isEn ? "Sessions" : "Sesi"}
             </div>
             <div className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest mt-1">Workout</div>
           </div>
@@ -295,7 +420,7 @@ export default function ReportTab({ state }: ReportTabProps) {
             <div className="text-2xl font-black font-mono text-violet-600">
               +{totalMonthlyXP} XP
             </div>
-            <div className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest mt-1">XP Bulan Ini</div>
+            <div className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest mt-1">{isEn ? "XP This Month" : "XP Bulan Ini"}</div>
           </div>
         </div>
       </div>
@@ -304,10 +429,10 @@ export default function ReportTab({ state }: ReportTabProps) {
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-5">
         <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
           <h4 className="text-xs font-black uppercase tracking-widest text-[#B8860B] flex items-center gap-1.5">
-            💰 Laporan Keuangan
+            💰 {isEn ? "Financial Summary" : "Laporan Keuangan"}
           </h4>
           <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">
-            Bulan Ini vs {prevMonthName}
+            {isEn ? "This Month vs" : "Bulan Ini vs"} {prevMonthName}
           </span>
         </div>
 
@@ -315,15 +440,15 @@ export default function ReportTab({ state }: ReportTabProps) {
           {/* Comparative Metrics */}
           <div className="md:col-span-5 space-y-4">
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
-              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">Total Pengeluaran</span>
+              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">{isEn ? "Total Expenses" : "Total Pengeluaran"}</span>
               <div className="flex flex-wrap items-baseline gap-2 mt-1">
                 <span className="text-xl font-black text-zinc-800 font-mono">{fmtRp(currentTotalExpense)}</span>
-                <span className="text-[10px] text-zinc-400 font-semibold">dari budget {fmtRp(state.budget)}</span>
+                <span className="text-[10px] text-zinc-400 font-semibold">{isEn ? "out of budget" : "dari budget"} {fmtRp(state.budget)}</span>
               </div>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
-              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">Perbandingan Bulan Lalu ({prevMonthName})</span>
+              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">{isEn ? "Last Month Comparison" : "Perbandingan Bulan Lalu"} ({prevMonthName})</span>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-lg font-extrabold text-zinc-600 font-mono">{fmtRp(prevTotalExpense)}</span>
                 <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
@@ -334,12 +459,12 @@ export default function ReportTab({ state }: ReportTabProps) {
                 </span>
               </div>
               <span className="text-[9px] text-zinc-400 font-bold block mt-1.5">
-                {expenseDiff <= 0 ? "Hemat" : "Boros"} sebesar {fmtRp(Math.abs(expenseDiff))} dibanding bulan lalu.
+                {expenseDiff <= 0 ? (isEn ? "Saved" : "Hemat") : (isEn ? "Overspent" : "Boros")} {isEn ? "by" : "sebesar"} {fmtRp(Math.abs(expenseDiff))} {isEn ? "compared to last month." : "dibanding bulan lalu."}
               </span>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
-              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">Tabungan Dikunci 🔒</span>
+              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">{isEn ? "Locked Savings" : "Tabungan Dikunci"} 🔒</span>
               <span className="text-lg font-black text-emerald-600 font-mono mt-1 block">
                 {fmtRp(state.expenses?.tabungan || 0)}
               </span>
@@ -348,7 +473,7 @@ export default function ReportTab({ state }: ReportTabProps) {
 
           {/* Chart */}
           <div className="md:col-span-7 h-[220px] bg-zinc-50/50 border border-zinc-200/60 rounded-2xl p-4 flex flex-col">
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block mb-3 font-bold">Chart Perbandingan Kategori (Rp)</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block mb-3 font-bold">{isEn ? "Category Comparison Chart (Rp)" : "Chart Perbandingan Kategori (Rp)"}</span>
             {expenseComparisonChartData.length > 0 ? (
               <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
@@ -366,14 +491,14 @@ export default function ReportTab({ state }: ReportTabProps) {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[150px] flex items-center justify-center text-xs text-zinc-400 italic">Belum ada data pengeluaran.</div>
+              <div className="h-[150px] flex items-center justify-center text-xs text-zinc-400 italic">{isEn ? "No expense data yet." : "Belum ada data pengeluaran."}</div>
             )}
           </div>
         </div>
 
         {/* Detailed Category Table Comparison */}
         <div className="bg-zinc-50/50 border border-zinc-200/60 rounded-2xl p-4 space-y-3">
-          <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">Rincian Kenaikan / Penurunan</span>
+          <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">{isEn ? "Increase / Decrease Details" : "Rincian Kenaikan / Penurunan"}</span>
           <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
             {categoriesData
               .filter((c) => c.current > 0 || c.prev > 0)
@@ -391,12 +516,12 @@ export default function ReportTab({ state }: ReportTabProps) {
                     <div className="flex items-center gap-3.5 font-mono">
                       <div className="text-right">
                         <div className="text-zinc-800 font-extrabold">{fmtRp(c.current)}</div>
-                        <div className="text-[9px] text-zinc-400 font-bold">Lalu: {fmtRp(c.prev)}</div>
+                        <div className="text-[9px] text-zinc-400 font-bold">{isEn ? "Prev" : "Lalu"}: {fmtRp(c.prev)}</div>
                       </div>
                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg w-[60px] text-center border ${
                         isSaving ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"
                       }`}>
-                        {diff === 0 ? "Sama" : isSaving ? `-${Math.abs(pctChange)}%` : `+${pctChange}%`}
+                        {diff === 0 ? (isEn ? "Same" : "Sama") : isSaving ? `-${Math.abs(pctChange)}%` : `+${pctChange}%`}
                       </span>
                     </div>
                   </div>
@@ -410,50 +535,51 @@ export default function ReportTab({ state }: ReportTabProps) {
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-5">
         <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
           <h4 className="text-xs font-black uppercase tracking-widest text-blue-600 flex items-center gap-1.5">
-            🏋️ Analisis Workout Bulanan
+            🏋️ {isEn ? "Monthly Workout Analytics" : "Analisis Workout Bulanan"}
           </h4>
-          <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">Disiplin Latihan</span>
+          <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">{isEn ? "Exercise Discipline" : "Disiplin Latihan"}</span>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
           <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">Total Sesi Latihan</span>
-            <span className="text-lg font-black text-blue-600 font-mono mt-1 block">{totalSessions} Sesi</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">{isEn ? "Total Sessions" : "Total Sesi Latihan"}</span>
+            <span className="text-lg font-black text-blue-600 font-mono mt-1 block">{totalSessions} {isEn ? "Sessions" : "Sesi"}</span>
           </div>
           <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">Total Waktu</span>
-            <span className="text-lg font-black text-zinc-800 font-mono mt-1 block">{totalDuration} mnt</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">{isEn ? "Total Duration" : "Total Waktu"}</span>
+            <span className="text-lg font-black text-zinc-800 font-mono mt-1 block">{totalDuration} {isEn ? "mins" : "mnt"}</span>
           </div>
           <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
             <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">Workout XP</span>
             <span className="text-lg font-black text-violet-600 font-mono mt-1 block">+{workoutXPMonth} XP</span>
           </div>
           <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4">
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">Latihan Terfavorit</span>
-            <span className="text-xs font-extrabold text-[#B8860B] truncate mt-2 block">{favTypeLabel}</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">{isEn ? "Favorite Workout" : "Latihan Terfavorit"}</span>
+            <span className="text-xs font-extrabold text-[#B8860B] truncate mt-2 block">{favTypeLabelTrans}</span>
           </div>
         </div>
 
         {/* Workout list details */}
         {monthWorkouts.length > 0 && (
           <div className="bg-zinc-50/50 border border-zinc-200/60 rounded-2xl p-4 space-y-3">
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">Daftar Sesi Workout Bulan Ini</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">{isEn ? "Workout Sessions List This Month" : "Daftar Sesi Workout Bulan Ini"}</span>
             <div className="space-y-2.5 max-h-[180px] overflow-y-auto pr-1">
               {monthWorkouts
                 .filter((w) => w.type !== "rest")
                 .map((w, idx) => {
                   const tDef = WTYPES.find((x) => x.id === w.type) || WTYPES[0];
+                  const label = translateWorkoutLabel(w.type, tDef.label);
                   return (
                     <div key={idx} className="flex items-center justify-between text-xs border-b border-zinc-100 pb-2 last:border-0 last:pb-0">
                       <div className="flex items-center gap-2.5">
                         <span className="text-base">{tDef.icon}</span>
                         <div>
-                          <div className="font-extrabold text-zinc-800">{tDef.label}</div>
-                          <div className="text-[9px] text-zinc-400 font-bold">{w.dateKey} &bull; {w.note || "Tidak ada catatan"}</div>
+                          <div className="font-extrabold text-zinc-800">{label}</div>
+                          <div className="text-[9px] text-zinc-400 font-bold">{w.dateKey} &bull; {w.note || (isEn ? "No notes" : "Tidak ada catatan")}</div>
                         </div>
                       </div>
                       <span className="font-mono text-[10px] text-[#B8860B] font-extrabold">
-                        {w.dur} mnt &bull; {w.sets}s/{w.reps}r
+                        {w.dur} {isEn ? "mins" : "mnt"} &bull; {w.sets}s/{w.reps}r
                       </span>
                     </div>
                   );
@@ -467,36 +593,36 @@ export default function ReportTab({ state }: ReportTabProps) {
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-5">
         <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
           <h4 className="text-xs font-black uppercase tracking-widest text-[#10B981] flex items-center gap-1.5">
-            ✅ Analisis Habits Bulanan
+            ✅ {isEn ? "Monthly Habits Analytics" : "Analisis Habits Bulanan"}
           </h4>
-          <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">Konsistensi Kebiasaan</span>
+          <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">{isEn ? "Habit Consistency" : "Konsistensi Kebiasaan"}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
           <div className="md:col-span-4 space-y-4">
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4 text-center">
-              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">Rasio Selesai Rata-rata</span>
+              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">{isEn ? "Average Completion Rate" : "Rasio Selesai Rata-rata"}</span>
               <span className="text-3xl font-black text-emerald-600 font-mono mt-2 block">{habitCompletionRate}%</span>
               <span className="text-[9px] text-zinc-400 font-bold mt-2.5 block leading-relaxed">
-                {totalActualCompletions} dari {totalPossibleCompletions} total target kebiasaan bulanan berhasil diselesaikan.
+                {totalActualCompletions} {isEn ? "out of" : "dari"} {totalPossibleCompletions} {isEn ? "total monthly target habits completed." : "total target kebiasaan bulanan berhasil diselesaikan."}
               </span>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-3 text-center">
-              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">Habits XP Didapat</span>
+              <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-widest block">{isEn ? "Habits XP Earned" : "Habits XP Didapat"}</span>
               <span className="text-lg font-black text-violet-600 font-mono mt-1 block">+{habitXPMonth} XP</span>
             </div>
           </div>
 
           <div className="md:col-span-8 bg-zinc-50/50 border border-zinc-200/60 rounded-2xl p-4 space-y-4">
-            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">Rasio Penyelesaian Per Habit</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold uppercase tracking-wider block">{isEn ? "Completion Rate Per Habit" : "Rasio Penyelesaian Per Habit"}</span>
             <div className="space-y-4">
               {individualHabitRates.map((h) => (
                 <div key={h.id} className="space-y-1.5">
                   <div className="flex justify-between text-xs font-extrabold">
                     <span className="flex items-center gap-1.5 text-zinc-700">
                       <span>{h.icon}</span>
-                      <span>{h.name}</span>
+                      <span>{translateHabitName(h.name)}</span>
                     </span>
                     <span className="font-mono text-[#10B981]">{h.rate}%</span>
                   </div>
@@ -510,7 +636,7 @@ export default function ReportTab({ state }: ReportTabProps) {
                       }} 
                     />
                   </div>
-                  <span className="text-[8px] text-zinc-400 font-black uppercase block">Selesai {h.completions} hari dari {recordedMonthDates.length} hari terlacak</span>
+                  <span className="text-[8px] text-zinc-400 font-black uppercase block">{isEn ? "Completed" : "Selesai"} {h.completions} {isEn ? "days out of" : "hari dari"} {recordedMonthDates.length} {isEn ? "tracked days" : "hari terlacak"}</span>
                 </div>
               ))}
             </div>
@@ -522,9 +648,9 @@ export default function ReportTab({ state }: ReportTabProps) {
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-5">
         <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
           <h4 className="text-xs font-black uppercase tracking-widest text-violet-600 flex items-center gap-1.5">
-            ⭐ Distribusi Perolehan XP Bulanan
+            ⭐ {isEn ? "Monthly XP Acquisition Distribution" : "Distribus Perolehan XP Bulanan"}
           </h4>
-          <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">Sumber XP</span>
+          <span className="text-[9px] text-zinc-400 font-extrabold uppercase font-mono">{isEn ? "XP Source" : "Sumber XP"}</span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
@@ -546,14 +672,14 @@ export default function ReportTab({ state }: ReportTabProps) {
                     ))}
                   </Pie>
                   <RechartsTooltip
-                    formatter={(value: any) => [`+${value} XP`, "Jumlah"]}
+                    formatter={(value: any) => [`+${value} XP`, isEn ? "Total" : "Jumlah"]}
                     contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)" }}
                   />
                   <RechartsLegend iconSize={8} wrapperStyle={{ fontSize: "9px" }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-xs text-zinc-400 italic">Belum ada XP terkumpul bulan ini.</div>
+              <div className="text-xs text-zinc-400 italic">{isEn ? "No XP earned this month." : "Belum ada XP terkumpul bulan ini."}</div>
             )}
           </div>
 
@@ -561,7 +687,7 @@ export default function ReportTab({ state }: ReportTabProps) {
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4 flex justify-between items-center transition-transform hover:translate-x-1">
               <div>
                 <span className="text-xs font-extrabold text-zinc-800 block">🏋️ Workout XP</span>
-                <span className="text-[9px] text-zinc-400 font-bold block mt-0.5">Berasal dari log sesi workout aktif</span>
+                <span className="text-[9px] text-zinc-400 font-bold block mt-0.5">{isEn ? "Earned from active workout session logs" : "Berasal dari log sesi workout aktif"}</span>
               </div>
               <span className="text-sm font-black font-mono text-violet-600">+{workoutXPMonth} XP</span>
             </div>
@@ -569,7 +695,7 @@ export default function ReportTab({ state }: ReportTabProps) {
             <div className="bg-zinc-50 border border-zinc-200/60 rounded-2xl p-4 flex justify-between items-center transition-transform hover:translate-x-1">
               <div>
                 <span className="text-xs font-extrabold text-zinc-800 block">✅ Habit XP</span>
-                <span className="text-[9px] text-zinc-400 font-bold block mt-0.5">Berasal dari keberhasilan menyelesaikan habit harian</span>
+                <span className="text-[9px] text-zinc-400 font-bold block mt-0.5">{isEn ? "Earned from completing daily habits" : "Berasal dari keberhasilan menyelesaikan habit harian"}</span>
               </div>
               <span className="text-sm font-black font-mono text-emerald-600">+{habitXPMonth} XP</span>
             </div>
@@ -585,14 +711,14 @@ export default function ReportTab({ state }: ReportTabProps) {
       {/* Automated Dynamic Insights */}
       <div className="bg-gradient-to-r from-amber-500/5 to-blue-500/5 border border-amber-200 rounded-3xl p-6 space-y-5 shadow-sm">
         <h4 className="text-xs font-black uppercase tracking-widest text-[#B8860B] flex items-center gap-1.5 border-b border-zinc-200 pb-3">
-          💡 Insight Otomatis (Evaluasi Sistem)
+          💡 {isEn ? "Automated Insights (System Evaluation)" : "Insight Otomatis (Evaluasi Sistem)"}
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Keuangan Insights */}
           <div className="space-y-3">
             <div className="text-xs font-black text-[#B8860B] uppercase tracking-wider flex items-center gap-1">
-              <span>💰</span> Keuangan
+              <span>💰</span> {isEn ? "Financial" : "Keuangan"}
             </div>
             <div className="space-y-2 text-xs text-zinc-600 leading-relaxed">
               {financialInsights.map((ins, i) => (
@@ -607,7 +733,7 @@ export default function ReportTab({ state }: ReportTabProps) {
           {/* Workout Insights */}
           <div className="space-y-3">
             <div className="text-xs font-black text-blue-600 uppercase tracking-wider flex items-center gap-1">
-              <span>🏋️</span> Workout & Kebugaran
+              <span>🏋️</span> {isEn ? "Workouts & Fitness" : "Workout & Kebugaran"}
             </div>
             <div className="space-y-2 text-xs text-zinc-600 leading-relaxed">
               {workoutInsights.map((ins, i) => (
@@ -622,7 +748,7 @@ export default function ReportTab({ state }: ReportTabProps) {
           {/* Habits Insights */}
           <div className="space-y-3">
             <div className="text-xs font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-              <span>✅</span> Habits & Kebiasaan
+              <span>✅</span> {isEn ? "Habits & Discipline" : "Habits & Kebiasaan"}
             </div>
             <div className="space-y-2 text-xs text-zinc-600 leading-relaxed">
               {habitInsights.map((ins, i) => (
@@ -635,7 +761,7 @@ export default function ReportTab({ state }: ReportTabProps) {
               <div className="flex gap-2 items-start bg-white/60 border border-zinc-200 rounded-2xl p-3 mt-2 shadow-sm">
                 <span className="text-rose-500">🔥</span>
                 <p className="text-[11px] text-zinc-500 font-medium">
-                  Streak terpanjang bulanan: <strong className="text-zinc-800 font-mono">{state.longestStreak || 0} hari</strong> berturut-turut!
+                  {isEn ? "Longest monthly streak:" : "Streak terpanjang bulanan:"} <strong className="text-zinc-800 font-mono">{state.longestStreak || 0} {isEn ? "days" : "hari"}</strong> {isEn ? "in a row!" : "berturut-turut!"}
                 </p>
               </div>
             </div>

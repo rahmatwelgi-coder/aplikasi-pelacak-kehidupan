@@ -8,6 +8,7 @@ import { AppState, CustomExpense } from "../types";
 import { ECATS } from "../constants";
 import { fmtRp, fmtK, totalExp } from "../utils";
 import Modal from "./Modal";
+import { getTranslation } from "../translations";
 import {
   ResponsiveContainer,
   BarChart,
@@ -43,15 +44,37 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
   const [isTabUnfinished, setIsTabUnfinished] = useState(true);
   const [tabVal, setTabVal] = useState("");
 
+  const isEn = state.lang === "en";
+  const t = getTranslation(state.lang);
+  const confirmKeyword = isEn ? "AGREE" : "SETUJU";
+
   const tot = totalExp(state);
   const sisa = state.budget - tot;
   const pct = state.budget > 0 ? Math.min(100, Math.round((tot / state.budget) * 100)) : 0;
   const pbC = pct > 90 ? "#E74C3C" : pct > 70 ? "#E67E22" : "#2ECC71";
   const aktual = tot - (state.expenses?.tabungan || 0);
 
-  // Combine standard + custom categories
+  // Label translator for standard categories
+  const getCategoryLabel = (cat: any) => {
+    if (!isEn) return cat.label;
+    const labelMap: Record<string, string> = {
+      "makan": "Daily Food / Meals",
+      "rokok": "Cigarettes / Smoking",
+      "hiburan": "Entertainment / Vacation",
+      "jajanan": "Snacks & Treats",
+      "bensin": "Motorcycle Fuel / Gas",
+      "outfit": "Clothing & Furniture",
+      "kampus": "Campus & Organization",
+      "laundry": "Laundry Services",
+      "darurat": "Emergency Fund",
+      "tabungan": "Locked Savings 🔒"
+    };
+    return labelMap[cat.id] || cat.label;
+  };
+
+  // Combine standard + custom categories with dynamic labels
   const allCategories = [
-    ...ECATS,
+    ...ECATS.map(c => ({ ...c, label: getCategoryLabel(c) })),
     ...(state.customExp || []).map((e) => ({
       id: e.id,
       icon: e.icon || "📦",
@@ -70,7 +93,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     const trimmed = customName.trim();
     const parsedAmt = parseInt(customAmt) || 0;
     if (!trimmed) {
-      showToast("❌ Isi nama pengeluaran!");
+      showToast(isEn ? "❌ Fill in the expense name!" : "❌ Isi nama pengeluaran!");
       return;
     }
     const newCustom: CustomExpense = {
@@ -83,7 +106,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     onChange({ customExp: updatedCustoms });
     setCustomName("");
     setCustomAmt("");
-    showToast(`✅ "${trimmed}" berhasil ditambahkan!`);
+    showToast(isEn ? `✅ "${trimmed}" added successfully!` : `✅ "${trimmed}" berhasil ditambahkan!`);
   };
 
   const handleDeleteCustomExpense = (id: string) => {
@@ -92,7 +115,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     const updatedExpenses = { ...state.expenses };
     delete updatedExpenses[id];
     onChange({ customExp: updatedCustoms, expenses: updatedExpenses });
-    showToast("🗑️ Kategori berhasil dihapus");
+    showToast(isEn ? "🗑️ Category deleted successfully" : "🗑️ Kategori berhasil dihapus");
   };
 
   const handleEditCustom = (id: string, name: string, amt: number) => {
@@ -105,7 +128,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     if (!selectedCustomId) return;
     const trimmed = editCustomName.trim();
     if (!trimmed) {
-      showToast("❌ Nama tidak boleh kosong!");
+      showToast(isEn ? "❌ Name cannot be empty!" : "❌ Nama tidak boleh kosong!");
       return;
     }
     const parsedAmt = parseInt(editCustomAmt) || 0;
@@ -114,7 +137,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     );
     onChange({ customExp: updatedCustoms });
     setSelectedCustomId(null);
-    showToast(`✅ "${trimmed}" berhasil diperbarui!`);
+    showToast(isEn ? `✅ "${trimmed}" updated successfully!` : `✅ "${trimmed}" berhasil diperbarui!`);
   };
 
   const handleSaveTabungan = () => {
@@ -125,7 +148,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     setTabConfirmInput("");
     setIsTabUnfinished(true);
     setTabVal("");
-    showToast(`✅ Tabungan diperbarui: ${fmtRp(parsedVal)} 🔒`);
+    showToast(isEn ? `✅ Savings updated: ${fmtRp(parsedVal)} 🔒` : `✅ Tabungan diperbarui: ${fmtRp(parsedVal)} 🔒`);
   };
 
   const handleCommitExpenseChange = (id: string) => {
@@ -144,12 +167,12 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
     }
     setEditEId(null);
     setEditVal("");
-    showToast(`✅ Pengeluaran ${fmtRp(parsedVal)} disimpan`);
+    showToast(isEn ? `✅ Expense of ${fmtRp(parsedVal)} saved` : `✅ Pengeluaran ${fmtRp(parsedVal)} disimpan`);
   };
 
   // Recharts data for chart below
   const chartData = ECATS.filter((c) => c.id !== "tabungan" && (state.expenses?.[c.id] || 0) > 0).map((c) => ({
-    name: c.label.split(" ")[0],
+    name: getCategoryLabel(c).split(" ")[0],
     jumlah: state.expenses?.[c.id] || 0,
     color: c.color,
   }));
@@ -159,7 +182,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
       {/* Monthly Budget Input Card */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
         <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-3 flex items-center gap-1.5">
-          💰 Anggaran Bulanan
+          💰 {isEn ? "Monthly Budget" : "Anggaran Bulanan"}
         </h3>
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <span className="text-lg font-black text-[#B8860B]">Rp</span>
@@ -174,15 +197,15 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
             className="bg-zinc-50 border border-zinc-200 text-zinc-800 font-mono font-extrabold text-lg rounded-2xl py-2.5 px-4 w-[200px] outline-none focus:border-[#C9A84C] focus:bg-white focus:ring-1 focus:ring-[#C9A84C] transition-all"
           />
           <button
-            onClick={() => showToast("✅ Budget berhasil disimpan!")}
+            onClick={() => showToast(isEn ? "✅ Budget saved successfully!" : "✅ Budget berhasil disimpan!")}
             className="bg-[#C9A84C] text-[#1a1500] hover:bg-[#B8860B] hover:text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs transition-all shadow-sm hover:shadow active:scale-95 cursor-pointer"
           >
-            Simpan
+            {isEn ? "Save" : "Simpan"}
           </button>
         </div>
 
         <div className="flex justify-between text-xs mb-2.5">
-          <span className="text-zinc-500 font-medium">Terpakai</span>
+          <span className="text-zinc-500 font-medium">{isEn ? "Used" : "Terpakai"}</span>
           <span className="font-extrabold" style={{ color: pbC }}>
             {pct}%
           </span>
@@ -197,9 +220,9 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
           </div>
         </div>
         <div className="flex justify-between mt-3 text-xs font-mono font-bold">
-          <span className="text-zinc-400">Total: {fmtRp(tot)}</span>
+          <span className="text-zinc-400">{isEn ? "Total" : "Total"}: {fmtRp(tot)}</span>
           <span className="font-black" style={{ color: sisa >= 0 ? "#10B981" : "#EF4444" }}>
-            {sisa >= 0 ? "Sisa: " : "OVER: "} {fmtRp(Math.abs(sisa))}
+            {sisa >= 0 ? (isEn ? "Remaining: " : "Sisa: ") : "OVER: "} {fmtRp(Math.abs(sisa))}
           </span>
         </div>
       </div>
@@ -207,10 +230,10 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { l: "Total Pengeluaran", v: fmtRp(tot), c: "text-[#B8860B]", bg: "bg-amber-50/40 border-amber-100" },
-          { l: "Sisa Anggaran", v: fmtRp(sisa), c: sisa >= 0 ? "text-emerald-600" : "text-rose-600", bg: sisa >= 0 ? "bg-emerald-50/30 border-emerald-100" : "bg-rose-50/40 border-rose-100" },
-          { l: "Tabungan 🔒", v: fmtRp(state.expenses?.tabungan || 0), c: "text-emerald-600", bg: "bg-emerald-50/30 border-emerald-100" },
-          { l: "Aktual (Belanja)", v: fmtRp(aktual), c: "text-blue-600", bg: "bg-blue-50/30 border-blue-100" },
+          { l: isEn ? "Total Expenses" : "Total Pengeluaran", v: fmtRp(tot), c: "text-[#B8860B]", bg: "bg-amber-50/40 border-amber-100" },
+          { l: isEn ? "Remaining Budget" : "Sisa Anggaran", v: fmtRp(sisa), c: sisa >= 0 ? "text-emerald-600" : "text-rose-600", bg: sisa >= 0 ? "bg-emerald-50/30 border-emerald-100" : "bg-rose-50/40 border-rose-100" },
+          { l: isEn ? "Savings 🔒" : "Tabungan 🔒", v: fmtRp(state.expenses?.tabungan || 0), c: "text-emerald-600", bg: "bg-emerald-50/30 border-emerald-100" },
+          { l: isEn ? "Actual (Spending)" : "Aktual (Belanja)", v: fmtRp(aktual), c: "text-blue-600", bg: "bg-blue-50/30 border-blue-100" },
         ].map((k, i) => (
           <div key={i} className={`bg-white border border-zinc-200/50 rounded-2xl p-4 shadow-sm text-center ${k.bg} transition-all duration-300 hover:scale-[1.02]`}>
             <div className={`text-xs font-extrabold font-mono ${k.c}`}>
@@ -222,7 +245,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
       </div>
 
       <div className="text-xs text-zinc-600 bg-amber-50/50 rounded-2xl p-4 leading-relaxed border border-amber-200/30">
-        💡 <strong className="text-[#B8860B] font-extrabold">Ketuk baris kategori</strong> &rarr; Ketik jumlah &rarr; Enter untuk menyimpan otomatis ke cloud ☁️
+        💡 <strong className="text-[#B8860B] font-extrabold">{isEn ? "Tap any category row" : "Ketuk baris kategori"}</strong> &rarr; {isEn ? "Type amount &rarr; Press Enter to auto-save to cloud ☁️" : "Ketik jumlah &rarr; Enter untuk menyimpan otomatis ke cloud ☁️"}
       </div>
 
       {/* Category Rows */}
@@ -271,15 +294,15 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                     <>
                       {limitPct >= 100 ? (
                         <span className="text-[9px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-extrabold border border-rose-100 flex items-center gap-1">
-                          🔴 Overbudget
+                          🔴 {isEn ? "Overbudget" : "Overbudget"}
                         </span>
                       ) : limitPct >= 80 ? (
                         <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md font-extrabold border border-amber-200 flex items-center gap-1">
-                          🟡 Hampir habis
+                          🟡 {isEn ? "Near limit" : "Hampir habis"}
                         </span>
                       ) : (
                         <span className="text-[9px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md font-extrabold border border-emerald-100 flex items-center gap-1">
-                          🟢 Aman
+                          🟢 {isEn ? "Safe" : "Aman"}
                         </span>
                       )}
                     </>
@@ -298,10 +321,10 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                 
                 <div className="text-[8px] text-zinc-400 mt-1 font-extrabold tracking-wide uppercase">
                   {limit > 0
-                    ? `${fmtRp(val)} / batas ${fmtRp(limit)} (${limitPct}%)`
+                    ? `${fmtRp(val)} / ${isEn ? "limit" : "batas"} ${fmtRp(limit)} (${limitPct}%)`
                     : catPct > 0
-                    ? `${catPct}% dari total anggaran`
-                    : "Belum dianggarkan secara spesifik"}
+                    ? `${catPct}% ${isEn ? "of total budget" : "dari total anggaran"}`
+                    : isEn ? "No specific budget set" : "Belum dianggarkan secara spesifik"}
                 </div>
               </div>
 
@@ -352,7 +375,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                 ) : (
                   <div className="flex items-center gap-1.5">
                     <span className={`text-xs font-mono ${val > 0 ? "font-extrabold text-zinc-700" : "text-zinc-300 text-[11px]"}`}>
-                      {val > 0 ? fmtRp(val) : "belum diisi ✏️"}
+                      {val > 0 ? fmtRp(val) : (isEn ? "not filled ✏️" : "belum diisi ✏️")}
                     </span>
                     {isCustom && (
                       <>
@@ -367,7 +390,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm("Hapus kategori kustom ini?")) handleDeleteCustomExpense(cat.id);
+                            if (confirm(isEn ? "Delete this custom category?" : "Hapus kategori kustom ini?")) handleDeleteCustomExpense(cat.id);
                           }}
                           className="text-rose-500 hover:text-rose-700 p-1 text-xs cursor-pointer"
                         >
@@ -386,19 +409,19 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
       {/* Add Custom Expense */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
         <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-3 flex items-center gap-1.5">
-          ➕ Tambah Pengeluaran Lainnya
+          {isEn ? "➕ Add Other Expenses" : "➕ Tambah Pengeluaran Lainnya"}
         </h4>
         <div className="flex flex-wrap gap-2">
           <input
             type="text"
-            placeholder="Nama pengeluaran..."
+            placeholder={isEn ? "Expense name..." : "Nama pengeluaran..."}
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
             className="flex-1 min-w-[130px] bg-zinc-50 border border-zinc-200 text-zinc-800 rounded-2xl py-2.5 px-4 text-xs outline-none focus:bg-white focus:border-[#C9A84C]"
           />
           <input
             type="number"
-            placeholder="Jumlah (Rp)"
+            placeholder={isEn ? "Amount (Rp)" : "Jumlah (Rp)"}
             value={customAmt}
             onChange={(e) => setCustomAmt(e.target.value)}
             className="w-[120px] bg-zinc-50 border border-zinc-200 text-zinc-800 rounded-2xl py-2.5 px-4 text-xs outline-none focus:bg-white focus:border-[#C9A84C] font-mono"
@@ -407,7 +430,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
             onClick={handleAddCustomExpense}
             className="bg-[#C9A84C] text-[#1a1500] hover:bg-[#B8860B] hover:text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer active:scale-95"
           >
-            + Tambah
+            {isEn ? "+ Add" : "+ Tambah"}
           </button>
         </div>
       </div>
@@ -415,7 +438,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
       {/* Expense Share Bar Chart */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
         <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-4">
-          Grafik Pengeluaran per Kategori
+          {isEn ? "Expenses by Category Chart" : "Grafik Pengeluaran per Kategori"}
         </h4>
         <div className="h-[200px]">
           {chartData.length > 0 ? (
@@ -424,7 +447,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                 <XAxis type="number" stroke="#a1a1aa" fontSize={8} tickFormatter={(v) => fmtK(v)} />
                 <YAxis type="category" dataKey="name" stroke="#71717a" fontSize={9} width={50} tickLine={false} />
                 <RechartsTooltip
-                  formatter={(value: any) => [fmtRp(value), "Jumlah"]}
+                  formatter={(value: any) => [fmtRp(value), isEn ? "Amount" : "Jumlah"]}
                   contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
                 />
                 <Bar dataKey="jumlah" fill="#C9A84C" radius={[0, 4, 4, 0]}>
@@ -437,7 +460,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-xs text-zinc-400 italic text-center">
               <span className="text-xl mb-1">📊</span>
-              <span>Belum ada data pengeluaran.</span>
+              <span>{isEn ? "No expense data yet." : "Belum ada data pengeluaran."}</span>
             </div>
           )}
         </div>
@@ -445,14 +468,14 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
 
       {/* Custom Category Edit Modal */}
       <Modal
-        isOpen={selectedCustomId !== null}
-        onClose={() => setSelectedCustomId(null)}
-        title="✏️ Edit Pengeluaran"
+         isOpen={selectedCustomId !== null}
+         onClose={() => setSelectedCustomId(null)}
+         title={isEn ? "✏️ Edit Expense" : "✏️ Edit Pengeluaran"}
       >
         <div className="space-y-4">
           <div>
             <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1.5 font-bold">
-              Nama Kategori
+              {isEn ? "Category Name" : "Nama Kategori"}
             </label>
             <input
               type="text"
@@ -463,7 +486,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
           </div>
           <div>
             <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1.5 font-bold">
-              Jumlah (Rp)
+              {isEn ? "Amount (Rp)" : "Jumlah (Rp)"}
             </label>
             <input
               type="number"
@@ -477,7 +500,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
               onClick={handleSaveCustomEdit}
               className="flex-1 bg-[#C9A84C] text-[#1a1500] hover:bg-[#B8860B] hover:text-white font-extrabold p-3 rounded-xl transition-colors text-xs cursor-pointer"
             >
-              ✓ Simpan
+              ✓ {isEn ? "Save" : "Simpan"}
             </button>
             <button
               onClick={() => {
@@ -488,7 +511,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
               }}
               className="bg-rose-50 border border-rose-100 text-rose-600 font-extrabold p-3 rounded-xl hover:bg-rose-100 transition-colors text-xs px-4 cursor-pointer"
             >
-              🗑️ Hapus
+              🗑️ {isEn ? "Delete" : "Hapus"}
             </button>
           </div>
         </div>
@@ -502,28 +525,34 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
           setTabConfirmInput("");
           setIsTabUnfinished(true);
         }}
-        title="🏦 Edit Tabungan"
+        title={isEn ? "🏦 Edit Savings" : "🏦 Edit Tabungan"}
       >
         <div className="space-y-4">
           <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 text-xs text-rose-700 leading-relaxed">
-            ⚠️ Tabungan dikunci untuk mencegah pengeluaran tidak sengaja.
+            {isEn
+              ? "⚠️ Savings are locked to prevent accidental spending."
+              : "⚠️ Tabungan dikunci untuk mencegah pengeluaran tidak sengaja."}
             <br />
-            Untuk membuka kunci, ketik <strong className="text-[#B8860B] font-bold">SETUJU</strong> di bawah.
+            {isEn ? (
+              <>To unlock, type <strong className="text-[#B8860B] font-bold">AGREE</strong> below.</>
+            ) : (
+              <>Untuk membuka kunci, ketik <strong className="text-[#B8860B] font-bold">SETUJU</strong> di bawah.</>
+            )}
           </div>
 
           <div>
             <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-1 font-bold">
-              Ketik SETUJU untuk buka kunci
+              {isEn ? "Type AGREE to unlock" : "Ketik SETUJU untuk buka kunci"}
             </label>
             <input
               type="text"
-              placeholder="SETUJU"
+              placeholder={confirmKeyword}
               value={tabConfirmInput}
               onChange={(e) => {
                 setTabConfirmInput(e.target.value);
-                if (e.target.value.trim().toUpperCase() === "SETUJU") {
+                if (e.target.value.trim().toUpperCase() === confirmKeyword) {
                   setIsTabUnfinished(false);
-                  showToast("🔓 Kunci terbuka! Edit jumlah tabungan.");
+                  showToast(isEn ? "🔓 Unlocked! Edit savings amount." : "🔓 Kunci terbuka! Edit jumlah tabungan.");
                 } else {
                   setIsTabUnfinished(true);
                 }
@@ -535,7 +564,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
           {!isTabUnfinished && (
             <div className="animate-fade-in">
               <label className="block text-[9px] text-emerald-600 uppercase tracking-widest mb-1 font-bold">
-                Jumlah Tabungan
+                {isEn ? "Savings Amount" : "Jumlah Tabungan"}
               </label>
               <input
                 type="number"
@@ -548,14 +577,14 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
 
           <button
             onClick={() => {
-              if (tabConfirmInput.trim().toUpperCase() === "SETUJU") {
+              if (tabConfirmInput.trim().toUpperCase() === confirmKeyword) {
                 if (isTabUnfinished) {
                   setIsTabUnfinished(false);
                 } else {
                   handleSaveTabungan();
                 }
               } else {
-                showToast("❌ Ketik SETUJU (huruf kapital) untuk membuka");
+                showToast(isEn ? "❌ Type AGREE (caps) to unlock" : "❌ Ketik SETUJU (huruf kapital) untuk membuka");
               }
             }}
             className={`w-full font-bold p-3 rounded-xl text-xs transition-colors cursor-pointer ${
@@ -564,7 +593,7 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                 : "bg-emerald-500 text-white hover:bg-emerald-600"
             }`}
           >
-            {isTabUnfinished ? "Cek Konfirmasi" : "✓ Simpan Tabungan"}
+            {isTabUnfinished ? (isEn ? "Check Confirmation" : "Cek Konfirmasi") : (isEn ? "✓ Save Savings" : "✓ Simpan Tabungan")}
           </button>
         </div>
       </Modal>

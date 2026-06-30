@@ -307,6 +307,28 @@ Tugas Kamu:
         </div>
       </div>
 
+      {/* 🛡️ Streak Freeze / Shield System */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-5 space-y-4">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-2">
+          🛡️ Streak Freeze Shield
+        </h4>
+        <div className="space-y-3">
+          <button
+            onClick={() => {
+              const current = state.streakFreezes !== undefined ? state.streakFreezes : 1;
+              onChange({ streakFreezes: current + 1 });
+              showToast("🛡️ Streak Freeze berhasil ditambahkan!");
+            }}
+            className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/80 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+          >
+            ➕ Tambah Streak Freeze (+1)
+          </button>
+          <div className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+            Shield tersisa: {state.streakFreezes !== undefined ? state.streakFreezes : 1}
+          </div>
+        </div>
+      </div>
+
       {/* 3. Workout Streak Settings */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-5 space-y-4">
         <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-2">

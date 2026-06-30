@@ -10,7 +10,16 @@ export const fmtRp = (n: number) => {
   return "Rp " + Math.round(n || 0).toLocaleString("id-ID");
 };
 
-export const fmtK = (n: number) => {
+export const fmtK = (n: number, lang?: string) => {
+  if (lang === "en") {
+    if (n >= 1e6) {
+      return (n / 1e6).toFixed(1) + "M";
+    }
+    if (n >= 1e3) {
+      return Math.round(n / 1e3) + "k";
+    }
+    return String(Math.round(n || 0));
+  }
   if (n >= 1e6) {
     return (n / 1e6).toFixed(1) + "jt";
   }
@@ -20,7 +29,7 @@ export const fmtK = (n: number) => {
   return String(Math.round(n || 0));
 };
 
-export function getLv(xp: number) {
+export function getLv(xp: number, lang?: string) {
   let idx = 0;
   for (let j = LEVELS.length - 1; j >= 0; j--) {
     if (xp >= LEVELS[j].min) {
@@ -31,16 +40,35 @@ export function getLv(xp: number) {
   const currentLevel = LEVELS[idx];
   const nextLevel = LEVELS[idx + 1] || { min: currentLevel.min + 600, title: "Grandmaster", color: "#C9A84C" };
   
+  let curTitle = currentLevel.title;
+  let nextTitle = nextLevel.title;
+  if (lang === "en") {
+    const levelMap: Record<string, string> = {
+      "Pemula": "Beginner",
+      "Aktif": "Active",
+      "Disiplin": "Disciplined",
+      "Konsisten": "Consistent",
+      "Atletis": "Athletic",
+      "Elite": "Elite",
+      "LEGEND": "LEGEND",
+      "Grandmaster": "Grandmaster"
+    };
+    curTitle = levelMap[currentLevel.title] || currentLevel.title;
+    nextTitle = levelMap[nextLevel.title] || nextLevel.title;
+  }
+
   const cur = xp - currentLevel.min;
   const need = nextLevel.min - currentLevel.min;
   const pct = Math.min(100, Math.round((cur / need) * 100));
   
   return {
     ...currentLevel,
+    title: curTitle,
     num: idx + 1,
     cur,
     need,
-    pct
+    pct,
+    nextTitle
   };
 }
 
@@ -80,7 +108,10 @@ export function totalWkXP(state: AppState, wkTypes: any[]): number {
 export function totalHabXP(state: AppState): number {
   return Object.values(state.checkedToday || {}).reduce((a, v) => {
     const h = (state.habits || []).find((x) => x.id === v);
-    return a + (h?.xp || 0);
+    if (!h) return a;
+    const multiplier = h.difficulty === "hard" ? 2 : 
+                       h.difficulty === "easy" ? 1 : 1.5;
+    return a + Math.round(h.xp * multiplier);
   }, 0);
 }
 
@@ -322,6 +353,7 @@ export function makeDefaultState(name = ""): AppState {
     activityLogs: mockActivityLogs,
     expenseHistory: mockExpenseHistory,
     theme: "light",
-    lang: "id"
+    lang: "id",
+    streakFreezes: 1
   };
 }

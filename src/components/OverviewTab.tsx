@@ -7,6 +7,7 @@ import { useState } from "react";
 import { AppState } from "../types";
 import { ECATS, WTYPES } from "../constants";
 import { fmtRp, fmtK, totalExp, totalWkXP, getLv } from "../utils";
+import { getTranslation } from "../translations";
 import {
   ResponsiveContainer,
   PieChart,
@@ -97,70 +98,98 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
     }
   });
 
+  const t = getTranslation(state.lang);
+  const isEn = state.lang === "en";
+
   // 1. Expense Change
-  let expenseChange = "stabil (Rp 0)";
+  let expenseChange = isEn ? "stable (Rp 0)" : "stabil (Rp 0)";
   let expenseStatus: "success" | "warning" | "neutral" = "neutral";
   const expDiff = thisWeekExp - prevWeekExp;
   if (prevWeekExp === 0 && thisWeekExp === 0) {
-    expenseChange = "stabil (Rp 0)";
+    expenseChange = isEn ? "stable (Rp 0)" : "stabil (Rp 0)";
     expenseStatus = "success";
   } else if (prevWeekExp === 0) {
-    expenseChange = `naik (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp 0)`;
+    expenseChange = isEn
+      ? `increased (Rp ${thisWeekExp.toLocaleString("en-US")} vs Rp 0)`
+      : `naik (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp 0)`;
     expenseStatus = "warning";
   } else {
     const pctDiff = Math.round((Math.abs(expDiff) / prevWeekExp) * 100);
+    const localeStr = isEn ? "en-US" : "id-ID";
     if (expDiff < 0) {
-      expenseChange = `turun ${pctDiff}% (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp ${prevWeekExp.toLocaleString("id-ID")})`;
+      expenseChange = isEn
+        ? `decreased ${pctDiff}% (Rp ${thisWeekExp.toLocaleString(localeStr)} vs Rp ${prevWeekExp.toLocaleString(localeStr)})`
+        : `turun ${pctDiff}% (Rp ${thisWeekExp.toLocaleString(localeStr)} vs Rp ${prevWeekExp.toLocaleString(localeStr)})`;
       expenseStatus = "success";
     } else if (expDiff > 0) {
-      expenseChange = `naik ${pctDiff}% (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp ${prevWeekExp.toLocaleString("id-ID")})`;
+      expenseChange = isEn
+        ? `increased ${pctDiff}% (Rp ${thisWeekExp.toLocaleString(localeStr)} vs Rp ${prevWeekExp.toLocaleString(localeStr)})`
+        : `naik ${pctDiff}% (Rp ${thisWeekExp.toLocaleString(localeStr)} vs Rp ${prevWeekExp.toLocaleString(localeStr)})`;
       expenseStatus = "warning";
     } else {
-      expenseChange = `stabil (Rp ${thisWeekExp.toLocaleString("id-ID")})`;
+      expenseChange = isEn
+        ? `stable (Rp ${thisWeekExp.toLocaleString(localeStr)})`
+        : `stabil (Rp ${thisWeekExp.toLocaleString(localeStr)})`;
       expenseStatus = "neutral";
     }
   }
 
   // 2. Workout Change
-  let workoutChange = `stabil (${thisWeekWorkouts} sesi)`;
+  const stableWord = isEn ? "stable" : "stabil";
+  const upWord = isEn ? "increased" : "naik";
+  const downWord = isEn ? "decreased" : "turun";
+  const workoutUnit = isEn ? "sessions" : "sesi";
+
+  let workoutChange = `${stableWord} (${thisWeekWorkouts} ${workoutUnit})`;
   let workoutStatus: "success" | "warning" | "neutral" = "neutral";
   const wkDiff = thisWeekWorkouts - prevWeekWorkouts;
   if (wkDiff > 0) {
-    workoutChange = `naik (${thisWeekWorkouts} vs ${prevWeekWorkouts} sesi)`;
+    workoutChange = `${upWord} (${thisWeekWorkouts} vs ${prevWeekWorkouts} ${workoutUnit})`;
     workoutStatus = "success";
   } else if (wkDiff < 0) {
-    workoutChange = `turun (${thisWeekWorkouts} vs ${prevWeekWorkouts} sesi)`;
+    workoutChange = `${downWord} (${thisWeekWorkouts} vs ${prevWeekWorkouts} ${workoutUnit})`;
     workoutStatus = "warning";
   } else {
-    workoutChange = `stabil (${thisWeekWorkouts} sesi)`;
+    workoutChange = `${stableWord} (${thisWeekWorkouts} ${workoutUnit})`;
     workoutStatus = "neutral";
   }
 
   // 3. Habit Change
-  let habitChange = `stabil (${thisWeekHabits} selesai)`;
+  const habitUnit = isEn ? "completed" : "selesai";
+  let habitChange = `${stableWord} (${thisWeekHabits} ${habitUnit})`;
   let habitStatus: "success" | "warning" | "neutral" = "neutral";
   const hbDiff = thisWeekHabits - prevWeekHabits;
   if (hbDiff > 0) {
-    habitChange = `naik (${thisWeekHabits} vs ${prevWeekHabits} selesai)`;
+    habitChange = `${upWord} (${thisWeekHabits} vs ${prevWeekHabits} ${habitUnit})`;
     habitStatus = "success";
   } else if (hbDiff < 0) {
-    habitChange = `turun (${thisWeekHabits} vs ${prevWeekHabits} selesai)`;
+    habitChange = `${downWord} (${thisWeekHabits} vs ${prevWeekHabits} ${habitUnit})`;
     habitStatus = "warning";
   } else {
-    habitChange = `stabil (${thisWeekHabits} selesai)`;
+    habitChange = `${stableWord} (${thisWeekHabits} ${habitUnit})`;
     habitStatus = "neutral";
   }
 
   // 4. Action Recommendation
-  let suggestion = "Semuanya berjalan lancar! Pertahankan konsistensi ini.";
+  let suggestion = isEn 
+    ? "Everything is running smoothly! Keep up this consistency."
+    : "Semuanya berjalan lancar! Pertahankan konsistensi ini.";
   if (expenseStatus === "warning" && workoutStatus === "warning") {
-    suggestion = "Pengeluaran naik dan sesi workout berkurang. Fokus kurangi jajan dan luangkan waktu 15 menit untuk workout ringan!";
+    suggestion = isEn
+      ? "Expenses increased and workouts decreased. Focus on spending less and set aside 15 minutes for a light workout!"
+      : "Pengeluaran naik dan sesi workout berkurang. Fokus kurangi jajan dan luangkan waktu 15 menit untuk workout ringan!";
   } else if (expenseStatus === "warning") {
-    suggestion = "Pengeluaran kamu meningkat minggu ini. Batasi belanja non-esensial dan fokus hemat di beberapa hari ke depan.";
+    suggestion = isEn
+      ? "Your spending increased this week. Limit non-essential purchases and focus on saving over the next few days."
+      : "Pengeluaran kamu meningkat minggu ini. Batasi belanja non-esensial dan fokus hemat di beberapa hari ke depan.";
   } else if (workoutStatus === "warning") {
-    suggestion = "Frekuensi olahraga kamu menurun. Yuk, kembalikan energi dengan sesi stretching atau latihan fisik singkat!";
+    suggestion = isEn
+      ? "Your exercise frequency has decreased. Reset your energy with a stretching session or quick physical exercise!"
+      : "Frekuensi olahraga kamu menurun. Yuk, kembalikan energi dengan sesi stretching atau latihan fisik singkat!";
   } else if (habitStatus === "warning") {
-    suggestion = "Konsistensi habit kamu sedang kendor. Coba tuntaskan setidaknya satu kebiasaan utama di pagi hari.";
+    suggestion = isEn
+      ? "Your habit consistency is slipping. Try to complete at least one main habit in the morning."
+      : "Konsistensi habit kamu sedang kendor. Coba tuntaskan setidaknya satu kebiasaan utama di pagi hari.";
   }
 
   const renderStatusIcon = (status: "success" | "warning" | "info" | "neutral") => {
@@ -270,21 +299,35 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
   // Financial Tips & Health suggestions
   const budgetTips = [];
   if (pct > 90) {
-    budgetTips.push("⚠️ Anggaran kamu sudah kritis! Sebaiknya kurangi belanja non-esensial.");
+    budgetTips.push(isEn 
+      ? "⚠️ Your budget is critical! You should reduce non-essential spending."
+      : "⚠️ Anggaran kamu sudah kritis! Sebaiknya kurangi belanja non-esensial.");
   } else if (pct > 70) {
-    budgetTips.push("⚡ Pengeluaran agak boros bulan ini. Mulai batasi jajan.");
+    budgetTips.push(isEn
+      ? "⚡ Spending is slightly extravagant this month. Start limiting snacks."
+      : "⚡ Pengeluaran agak boros bulan ini. Mulai batasi jajan.");
   } else {
-    budgetTips.push("🟢 Pengeluaran terjaga dengan baik. Pertahankan!");
+    budgetTips.push(isEn
+      ? "🟢 Spending is well maintained. Keep it up!"
+      : "🟢 Pengeluaran terjaga dengan baik. Pertahankan!");
   }
-  budgetTips.push(`Tabungan bulan ini aman terkunci: ${fmtRp(state.expenses?.tabungan || 0)}.`);
+  budgetTips.push(isEn
+    ? `This month's savings are safely locked: ${fmtRp(state.expenses?.tabungan || 0)}.`
+    : `Tabungan bulan ini aman terkunci: ${fmtRp(state.expenses?.tabungan || 0)}.`);
 
   const workoutTips = [];
   if (wDone >= 12) {
-    workoutTips.push("🔥 Luar biasa! Konsistensi workout kamu setara atlet elite bulan ini.");
+    workoutTips.push(isEn
+      ? "🔥 Amazing! Your workout consistency matches an elite athlete this month."
+      : "🔥 Luar biasa! Konsistensi workout kamu setara atlet elite bulan ini.");
   } else if (wDone >= 6) {
-    workoutTips.push("💪 Bagus! Rutinitas workout kamu sudah terbentuk aktif.");
+    workoutTips.push(isEn
+      ? "💪 Good job! Your workout routine has been actively established."
+      : "💪 Bagus! Rutinitas workout kamu sudah terbentuk aktif.");
   } else {
-    workoutTips.push("😴 Yuk, tingkatkan frekuensi workout biar badan lebih bugar!");
+    workoutTips.push(isEn
+      ? "😴 Come on, increase your workout frequency to get fitter!"
+      : "😴 Yuk, tingkatkan frekuensi workout biar badan lebih bugar!");
   }
 
   const activeGoals = state.goals?.filter((g) => !g.completed) || [];
@@ -298,7 +341,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
           <div className="md:col-span-6 flex flex-col sm:flex-row items-center justify-center gap-6 border-b md:border-b-0 md:border-r border-zinc-100 pb-6 md:pb-0 md:pr-6">
             <div className="flex flex-col items-center">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-4">
-                Indeks Kualitas Hidup
+                {t.lifeScoreHeader}
               </h3>
               <div className="relative w-36 h-36 flex items-center justify-center">
                 {/* SVG Ring Progress */}
@@ -331,7 +374,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
                     {lifeScore}
                   </span>
                   <span className="text-[8px] text-zinc-400 font-extrabold tracking-widest uppercase mt-0.5">
-                    Life Score
+                    {t.lifeScoreLabel}
                   </span>
                   <span className="text-[7px] text-zinc-300 font-bold font-mono mt-0.5">
                     /100
@@ -340,10 +383,10 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
               </div>
               <p className="text-[11px] text-zinc-400 font-medium mt-4 max-w-[160px] leading-relaxed text-center">
                 {lifeScore >= 80 
-                  ? "Luar biasa! Kamu menjaga keseimbangan hidup dengan sangat disiplin." 
+                  ? t.lifeScoreExcellent 
                   : lifeScore >= 60 
-                  ? "Bagus! Terus tingkatkan performa harianmu untuk hasil optimal." 
-                  : "Ayo lebih disiplin! Fokus perbaiki salah satu aspek hari ini."}
+                  ? t.lifeScoreGood 
+                  : t.lifeScoreNeedImprovement}
               </p>
             </div>
 
@@ -351,7 +394,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             <div className="w-full sm:w-56 h-48 flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart cx="50%" cy="50%" outerRadius="65%" data={[
-                  { subject: "Finansial", A: finScore },
+                  { subject: isEn ? "Financial" : "Finansial", A: finScore },
                   { subject: "Workout", A: workoutScore },
                   { subject: "Habit", A: habitScore },
                   { subject: "Goal", A: goalScore },
@@ -370,10 +413,10 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
           <div className="md:col-span-6 space-y-4.5">
             <div>
               <h4 className="text-xs font-black text-zinc-800 tracking-wide uppercase mb-1">
-                Metrik Keseimbangan Hidup
+                {t.metricsHeader}
               </h4>
               <p className="text-[10px] text-zinc-400 font-medium">
-                Kombinasi performa keuangan, latihan fisik, konsistensi habit, dan target pencapaian harian.
+                {t.metricsDesc}
               </p>
             </div>
 
@@ -382,7 +425,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
               <div>
                 <div className="flex justify-between items-baseline mb-1">
                   <span className="text-xs font-bold text-zinc-700 flex items-center gap-1.5">
-                    <span>💰</span> Finansial
+                    <span>💰</span> {isEn ? "Financial" : "Finansial"}
                   </span>
                   <span className="text-xs font-extrabold font-mono text-[#B8860B]">{finScore}</span>
                 </div>
@@ -450,10 +493,10 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
       <div className="bg-white border border-zinc-200/60 shadow-[0_12px_40px_rgba(0,0,0,0.02)] rounded-3xl p-6 relative">
         <div className="flex justify-between items-center mb-4 border-b border-zinc-100 pb-3">
           <h3 className="text-xs font-black uppercase tracking-widest text-[#B8860B] flex items-center gap-2">
-            <span>📈</span> Minggu Ini
+            <span>📈</span> {t.thisWeekSummary}
           </h3>
           <span className="text-[9px] text-emerald-600 font-extrabold tracking-wider uppercase bg-emerald-50 border border-emerald-100 px-2.5 py-1.5 rounded-xl flex items-center gap-1 select-none">
-            🔄 Auto-Calculate
+            🔄 {t.autoCalculate}
           </span>
         </div>
 
@@ -461,14 +504,14 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
           {/* Metrics Column */}
           <div className="md:col-span-6 space-y-3">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">
-              Performa & Capaian:
+              {isEn ? "Performance & Achievements:" : "Performa & Capaian:"}
             </h4>
             <div className="space-y-2.5 text-sm font-semibold text-zinc-700">
               <div className="flex items-center gap-2.5 bg-zinc-50/50 border border-zinc-100 rounded-2xl p-3">
                 <span className="w-6 h-6 rounded-full bg-emerald-50 text-center flex items-center justify-center border border-emerald-100">
                   {renderStatusIcon(expenseStatus)}
                 </span>
-                <span className="text-zinc-600">Pengeluaran {expenseChange}</span>
+                <span className="text-zinc-600">{isEn ? "Expenses" : "Pengeluaran"} {expenseChange}</span>
               </div>
               
               <div className="flex items-center gap-2.5 bg-zinc-50/50 border border-zinc-100 rounded-2xl p-3">
@@ -491,12 +534,12 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
           <div className="md:col-span-6 flex flex-col h-full justify-between">
             <div>
               <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">
-                Saran & Rekomendasi:
+                {t.adviceRecommendations}
               </h4>
               <div className="flex items-start gap-3 text-xs text-zinc-600 bg-amber-50/40 border border-amber-100/50 rounded-2xl p-4 leading-relaxed h-full">
                 <span className="text-xl">💡</span>
                 <div>
-                  <p className="font-semibold text-zinc-800 text-sm mb-1">Rencana Aksi</p>
+                  <p className="font-semibold text-zinc-800 text-sm mb-1">{t.actionPlan}</p>
                   <p className="font-semibold text-zinc-600 leading-relaxed">{suggestion}</p>
                 </div>
               </div>
@@ -511,17 +554,17 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <h3 className="text-xs font-black uppercase tracking-widest text-[#B8860B] flex items-center gap-2">
-              <span className="p-1.5 bg-amber-50 rounded-xl text-sm">💰</span> Finansial & Anggaran
+              <span className="p-1.5 bg-amber-50 rounded-xl text-sm">💰</span> {t.financialBudgetGroup}
             </h3>
-            <span className="text-[10px] text-zinc-400 font-extrabold font-mono uppercase bg-zinc-100 px-2 py-0.5 rounded-md">Bulan Ini</span>
+            <span className="text-[10px] text-zinc-400 font-extrabold font-mono uppercase bg-zinc-100 px-2 py-0.5 rounded-md">{t.thisMonth}</span>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             {[
-              { i: "💵", v: fmtRp(state.budget), l: "Anggaran", c: "text-emerald-600" },
-              { i: "📤", v: fmtRp(tot), l: "Pengeluaran", c: pct > 90 ? "text-rose-600" : pct > 70 ? "text-orange-600" : "text-[#B8860B]" },
-              { i: "💰", v: fmtRp(sisa), l: "Sisa", c: sisa >= 0 ? "text-emerald-600" : "text-rose-600" },
-              { i: "💡", v: fmtRp(sar), l: "Saran Harian", c: "text-blue-600" },
+              { i: "💵", v: fmtRp(state.budget), l: t.budget, c: "text-emerald-600" },
+              { i: "📤", v: fmtRp(tot), l: isEn ? "Expenses" : "Pengeluaran", c: pct > 90 ? "text-rose-600" : pct > 70 ? "text-orange-600" : "text-[#B8860B]" },
+              { i: "💰", v: fmtRp(sisa), l: t.remainingLabel, c: sisa >= 0 ? "text-emerald-600" : "text-rose-600" },
+              { i: "💡", v: fmtRp(sar), l: t.dailyAdvice, c: "text-blue-600" },
             ].map((k, idx) => (
               <div 
                 key={idx} 
@@ -543,17 +586,17 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <h3 className="text-xs font-black uppercase tracking-widest text-[#3498DB] flex items-center gap-2">
-              <span className="p-1.5 bg-blue-50 rounded-xl text-sm">🏋️</span> Kebugaran & Disiplin
+              <span className="p-1.5 bg-blue-50 rounded-xl text-sm">🏋️</span> {t.fitnessDisciplineGroup}
             </h3>
-            <span className="text-[10px] text-zinc-400 font-extrabold font-mono uppercase bg-zinc-100 px-2 py-0.5 rounded-md">Bulan Ini</span>
+            <span className="text-[10px] text-zinc-400 font-extrabold font-mono uppercase bg-zinc-100 px-2 py-0.5 rounded-md">{t.thisMonth}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {[
-              { i: "🏃", v: `${wDone} Sesi`, l: "Workout Aktif", c: "text-purple-600" },
-              { i: "⏱️", v: `${wMnt} mnt`, l: "Durasi Latihan", c: "text-orange-600" },
-              { i: "⭐", v: `${xpTot} XP`, l: "Workout XP", c: "text-[#B8860B]" },
-              { i: "🔥", v: `${state.streak || 0} Hari`, l: "Habit Streak", c: "text-rose-600" },
+              { i: "🏃", v: `${wDone} ${isEn ? "Sessions" : "Sesi"}`, l: t.activeSessions, c: "text-purple-600" },
+              { i: "⏱️", v: `${wMnt} ${isEn ? "min" : "mnt"}`, l: t.workoutDurationLabel, c: "text-orange-600" },
+              { i: "⭐", v: `${xpTot} XP`, l: t.workoutXPLabel, c: "text-[#B8860B]" },
+              { i: "🔥", v: `${state.streak || 0} ${isEn ? "Days" : "Hari"}`, l: t.habitStreakLabel, c: "text-rose-600" },
             ].map((k, idx) => (
               <div 
                 key={idx} 
@@ -575,9 +618,9 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
       {/* Main Budget Progress Card */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 space-y-4">
         <div className="flex justify-between items-center text-xs">
-          <span className="text-zinc-500 uppercase tracking-wider font-extrabold text-[10px]">Utilisasi Anggaran Bulan Ini</span>
+          <span className="text-zinc-500 uppercase tracking-wider font-extrabold text-[10px]">{t.budgetUtilization}</span>
           <span className="font-extrabold font-mono text-xs px-3 py-1 rounded-full bg-zinc-50 border border-zinc-200/50" style={{ color: pbC }}>
-            {pct}% Terpakai
+            {pct}% {t.used}
           </span>
         </div>
         
@@ -594,12 +637,12 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="flex justify-between mt-2 text-xs font-mono">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-zinc-400" />
-            <span className="text-zinc-400 text-[10px] font-bold uppercase">Terpakai:</span>
+            <span className="text-zinc-400 text-[10px] font-bold uppercase">{t.used}:</span>
             <span className="font-extrabold text-zinc-800">{fmtRp(tot)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sisa >= 0 ? "#10B981" : "#EF4444" }} />
-            <span className="text-zinc-400 text-[10px] font-bold uppercase">Sisa:</span>
+            <span className="text-zinc-400 text-[10px] font-bold uppercase">{t.remainingLabel}:</span>
             <span className="font-extrabold" style={{ color: sisa >= 0 ? "#10B981" : "#EF4444" }}>{fmtRp(sisa)}</span>
           </div>
         </div>
@@ -611,9 +654,9 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center border-b border-zinc-100 pb-4 mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-              📈 Distribusi Pengeluaran
+              📈 {t.expenseDistribution}
             </h3>
-            <span className="text-[9px] text-[#B8860B] bg-amber-50 px-2 py-0.5 rounded-full font-black font-mono">Non-Tabungan</span>
+            <span className="text-[9px] text-[#B8860B] bg-amber-50 px-2 py-0.5 rounded-full font-black font-mono">{t.nonSavings}</span>
           </div>
           
           <div className="h-[210px] flex items-center justify-center">
@@ -630,11 +673,11 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <RechartsTooltip
-                    formatter={(value: any) => [fmtRp(value), "Jumlah"]}
+                    formatter={(value: any) => [fmtRp(value), isEn ? "Amount" : "Jumlah"]}
                     contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
                   />
                   <RechartsLegend
@@ -648,8 +691,8 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             ) : (
               <div className="text-xs text-zinc-400 italic flex flex-col items-center gap-2 py-8 text-center">
                 <span className="text-2xl">🤷‍♂️</span>
-                <span className="font-bold text-zinc-600">Belum ada pengeluaran bulan ini.</span>
-                <span className="text-[9px] text-zinc-400 max-w-[180px]">Catat belanja harianmu di tab Pengeluaran</span>
+                <span className="font-bold text-zinc-600">{t.noExpensesRecorded}</span>
+                <span className="text-[9px] text-zinc-400 max-w-[180px]">{isEn ? "Record your daily spending in the Expenses tab" : "Catat belanja harianmu di tab Pengeluaran"}</span>
               </div>
             )}
           </div>
@@ -659,9 +702,9 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center border-b border-zinc-100 pb-4 mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-              📊 Tren Durasi Workout
+              📊 {t.workoutDurationTrend}
             </h3>
-            <span className="text-[9px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-black font-mono">Harian (Mnt)</span>
+            <span className="text-[9px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-black font-mono">{t.dailyMin}</span>
           </div>
 
           <div className="h-[210px]">
@@ -671,7 +714,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
                 <YAxis stroke="#a1a1aa" fontSize={8} tickLine={false} />
                 <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
                 <RechartsTooltip
-                  formatter={(value: any) => [`${value} mnt`, "Durasi"]}
+                  formatter={(value: any) => [`${value} ${isEn ? "min" : "mnt"}`, isEn ? "Duration" : "Durasi"]}
                   contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
                 />
                 <Line
@@ -694,19 +737,19 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center border-b border-zinc-100 pb-4 mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-              📈 Pengeluaran per Kategori
+              📈 {t.expensesByCategory}
             </h3>
-            <span className="text-[9px] text-zinc-400 font-extrabold font-mono bg-zinc-100 px-2 py-0.5 rounded-full">Bulan Ini</span>
+            <span className="text-[9px] text-zinc-400 font-extrabold font-mono bg-zinc-100 px-2 py-0.5 rounded-full">{t.thisMonth}</span>
           </div>
 
           <div className="h-[200px]">
             {expenseBarData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={expenseBarData} layout="vertical" margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                  <XAxis type="number" stroke="#a1a1aa" fontSize={8} tickFormatter={(v) => fmtK(v)} />
+                  <XAxis type="number" stroke="#a1a1aa" fontSize={8} tickFormatter={(v) => fmtK(v, state.lang)} />
                   <YAxis type="category" dataKey="name" stroke="#71717a" fontSize={9} width={50} tickLine={false} />
                   <RechartsTooltip
-                    formatter={(value: any) => [fmtRp(value), "Jumlah"]}
+                    formatter={(value: any) => [fmtRp(value), isEn ? "Amount" : "Jumlah"]}
                     contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
                   />
                   <Bar dataKey="jumlah" fill="#C9A84C" radius={[0, 4, 4, 0]} barSize={10}>
@@ -719,7 +762,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-xs text-zinc-400 italic text-center py-8">
                 <span className="text-xl">💳</span>
-                <span className="font-bold text-zinc-500 mt-1">Belum ada pengeluaran tercatat</span>
+                <span className="font-bold text-zinc-500 mt-1">{t.noExpensesRecorded}</span>
               </div>
             )}
           </div>
@@ -729,9 +772,9 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center border-b border-zinc-100 pb-4 mb-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-              🔥 Intensitas Jenis Workout
+              🔥 {t.workoutTypeIntensity}
             </h3>
-            <span className="text-[9px] text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full font-black font-mono">Sesi Latihan</span>
+            <span className="text-[9px] text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full font-black font-mono">{t.exerciseSessions}</span>
           </div>
 
           <div className="h-[200px]">
@@ -741,7 +784,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
                   <XAxis dataKey="name" stroke="#71717a" fontSize={8} tickLine={false} />
                   <YAxis stroke="#a1a1aa" fontSize={8} tickLine={false} />
                   <RechartsTooltip
-                    formatter={(value: any) => [`${value} sesi`, "Jumlah"]}
+                    formatter={(value: any) => [`${value} ${isEn ? "sessions" : "sesi"}`, isEn ? "Amount" : "Jumlah"]}
                     contentStyle={{ backgroundColor: "#ffffff", borderColor: "#f4f4f5", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.05)", color: "#18181b" }}
                   />
                   <Bar dataKey="sesi" fill="#9B59B6" radius={[4, 4, 0, 0]} barSize={16}>
@@ -754,7 +797,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-xs text-zinc-400 italic text-center py-8">
                 <span className="text-xl">🏋️</span>
-                <span className="font-bold text-zinc-500 mt-1">Belum ada log workout bulan ini</span>
+                <span className="font-bold text-zinc-500 mt-1">{t.noWorkoutsLogged}</span>
               </div>
             )}
           </div>
@@ -767,7 +810,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-amber-50/50 border border-amber-200/60 rounded-3xl p-5 flex flex-col justify-between hover:bg-amber-50 transition-colors duration-300">
           <div>
             <h4 className="text-xs font-black text-[#B8860B] mb-3.5 flex items-center gap-2 uppercase tracking-wider">
-              <span className="p-1 bg-amber-100 rounded-lg text-xs">💰</span> Finansial Insight
+              <span className="p-1 bg-amber-100 rounded-lg text-xs">💰</span> {t.financialInsight}
             </h4>
             <div className="space-y-3 text-xs text-zinc-600 leading-relaxed">
               {budgetTips.map((tip, i) => (
@@ -779,7 +822,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             </div>
           </div>
           <div className="border-t border-zinc-200/50 mt-4 pt-3.5 flex justify-between items-center text-[10px] text-zinc-400 font-extrabold font-mono uppercase">
-            <span>Riwayat Aktual</span>
+            <span>{t.actualSpent}</span>
             <span className="text-emerald-600 font-bold">{fmtRp(aktual)}</span>
           </div>
         </div>
@@ -788,7 +831,7 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-blue-50/30 border border-blue-200/60 rounded-3xl p-5 flex flex-col justify-between hover:bg-blue-50 transition-colors duration-300">
           <div>
             <h4 className="text-xs font-black text-blue-600 mb-3.5 flex items-center gap-2 uppercase tracking-wider">
-              <span className="p-1 bg-blue-100 rounded-lg text-xs">🏋️</span> Kebugaran Insight
+              <span className="p-1 bg-blue-100 rounded-lg text-xs">🏋️</span> {t.fitnessInsight}
             </h4>
             <div className="space-y-3 text-xs text-zinc-600 leading-relaxed">
               {workoutTips.map((tip, i) => (
@@ -800,8 +843,8 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             </div>
           </div>
           <div className="border-t border-zinc-200/50 mt-4 pt-3.5 flex justify-between items-center text-[10px] text-zinc-400 font-extrabold font-mono uppercase">
-            <span>Volume Total</span>
-            <span className="text-blue-600 font-bold">{wMnt} Mnt &bull; {wDone} Sesi</span>
+            <span>{t.totalVolume}</span>
+            <span className="text-blue-600 font-bold">{wMnt} {isEn ? "Min" : "Mnt"} &bull; {wDone} {isEn ? "Sessions" : "Sesi"}</span>
           </div>
         </div>
 
@@ -809,13 +852,13 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
         <div className="bg-emerald-50/30 border border-emerald-200/60 rounded-3xl p-5 flex flex-col justify-between hover:bg-emerald-50 transition-colors duration-300">
           <div>
             <h4 className="text-xs font-black text-emerald-600 mb-3.5 flex items-center gap-2 uppercase tracking-wider">
-              <span className="p-1 bg-emerald-100 rounded-lg text-xs">🎯</span> Target & Goals
+              <span className="p-1 bg-emerald-100 rounded-lg text-xs">🎯</span> {t.targetGoals}
             </h4>
             <div className="space-y-3 text-xs text-zinc-600 leading-relaxed">
               {activeGoals.length > 0 ? (
                 <>
                   <p className="pb-1.5 border-b border-zinc-100 font-medium text-zinc-700">
-                    Kamu memiliki <strong className="text-zinc-900 font-extrabold">{activeGoals.length} goal aktif</strong> bulan ini.
+                    {isEn ? "You have " : "Kamu memiliki "}<strong className="text-zinc-900 font-extrabold">{activeGoals.length} {isEn ? "active goals" : "goal aktif"}</strong> {isEn ? "this month" : "bulan ini"}.
                   </p>
                   <div className="space-y-3">
                     {activeGoals.slice(0, 2).map((g) => {
@@ -837,15 +880,15 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
               ) : (
                 <div className="flex flex-col items-center justify-center gap-2 py-4 text-center text-zinc-400 italic">
                   <span className="text-xl">🏆</span>
-                  <span className="font-bold text-zinc-500">Belum ada goal aktif</span>
-                  <p className="text-[9px] tracking-wide uppercase font-extrabold text-zinc-400">Yuk buat target barumu!</p>
+                  <span className="font-bold text-zinc-500">{isEn ? "No active goals yet" : "Belum ada goal aktif"}</span>
+                  <p className="text-[9px] tracking-wide uppercase font-extrabold text-zinc-400">{isEn ? "Let's create your new targets!" : "Yuk buat target barumu!"}</p>
                 </div>
               )}
             </div>
           </div>
           <div className="border-t border-zinc-200/50 mt-4 pt-3.5 flex justify-between items-center text-[10px] text-zinc-400 font-extrabold font-mono uppercase">
-            <span>Sisa Goals</span>
-            <span className="text-emerald-600 font-bold">{activeGoals.length} Aktif</span>
+            <span>{t.remainingGoals}</span>
+            <span className="text-emerald-600 font-bold">{activeGoals.length} {isEn ? "Active" : "Aktif"}</span>
           </div>
         </div>
       </div>

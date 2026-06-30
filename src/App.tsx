@@ -430,13 +430,16 @@ export default function App() {
       newlyChecked.forEach(id => {
         const hObj = state.habits.find(x => x.id === id);
         if (hObj) {
+          const multiplier = hObj.difficulty === "hard" ? 2 : 
+                             hObj.difficulty === "easy" ? 1 : 1.5;
+          const earnedXP = Math.round(hObj.xp * multiplier);
           newLogs.push({
             id: `log_hb_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
             timestamp: timestampStr,
             type: "habit",
             action: `Habit Selesai: ${hObj.icon} ${hObj.name}`,
-            details: `Diselesaikan hari ini (+${hObj.xp} XP)`,
-            value: hObj.xp
+            details: `Diselesaikan hari ini (+${earnedXP} XP)`,
+            value: earnedXP
           });
         }
       });
@@ -541,6 +544,24 @@ export default function App() {
       // Save what was checked yesterday
       updatedHistory[lastDateKey] = prevCheckedIds;
 
+      // Check whether yesterday had completed habits
+      const hadActivityYesterday = prevCheckedIds.length > 0;
+      if (!hadActivityYesterday && (state.streak || 0) > 0) {
+        const currentFreezes = state.streakFreezes !== undefined ? state.streakFreezes : 1;
+        if (currentFreezes > 0) {
+          showToast("🛡️ Streak Freeze digunakan! Streak-mu terlindungi.");
+          handleStateChange({
+            streakFreezes: currentFreezes - 1,
+            checkedToday: {},
+            habitHistory: updatedHistory,
+            lastDate: todayStr,
+            streak: state.streak,
+            longestStreak: Math.max(state.longestStreak || 0, state.streak || 0)
+          });
+          return;
+        }
+      }
+
       // 2. Recalculate streaks
       const allDates = Object.keys(updatedHistory).sort();
       
@@ -615,7 +636,7 @@ export default function App() {
 
   // Header Calculations
   const xp = totalWkXP(state, WTYPES) + totalHabXP(state);
-  const lv = getLv(xp);
+  const lv = getLv(xp, state.lang);
   const totalSpend = totalExp(state);
   const sisa = state.budget - totalSpend;
 
@@ -687,7 +708,7 @@ export default function App() {
                   sisa >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                 }`}
               >
-                Rp{fmtK(sisa)}
+                Rp{fmtK(sisa, state.lang)}
               </span>
               <span className="text-zinc-400 dark:text-zinc-500 uppercase text-[7px] font-extrabold">{t.remaining}</span>
             </div>
@@ -775,8 +796,8 @@ export default function App() {
               onClick={() => setActiveTab(tb.id as TabId)}
               className={`py-3 px-4 text-xs font-bold tracking-wider uppercase border-b-2 whitespace-nowrap transition-all outline-none cursor-pointer ${
                 activeTab === tb.id
-                  ? "text-[#B8860B] dark:text-[#C9A84C] border-[#C9A84C] font-black"
-                  : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-200 dark:hover:border-zinc-800"
+                  ? "text-zinc-900 dark:text-white border-zinc-900 dark:border-amber-400 font-black"
+                  : "text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:hover:text-white hover:border-zinc-200 dark:hover:border-zinc-800"
               }`}
             >
               {tb.label}

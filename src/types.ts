@@ -39,6 +39,7 @@ export interface Habit {
   icon: string;
   name: string;
   xp: number;
+  difficulty?: "easy" | "medium" | "hard";
 }
 
 export interface AppState {
@@ -63,6 +64,8 @@ export interface AppState {
   expenseHistory?: Record<string, MonthlyExpenseSnapshot>; // key is "YYYY-MM"
   theme?: "light" | "dark";
   lang?: "id" | "en";
+  moodLog?: Record<string, number>;
+  streakFreezes?: number;
 }
 
 export interface HistoryLog {

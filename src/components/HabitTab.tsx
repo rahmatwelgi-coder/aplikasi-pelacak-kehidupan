@@ -20,11 +20,13 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
   const [newHabitName, setNewHabitName] = useState("");
   const [newHabitIco, setNewHabitIco] = useState("⚡");
   const [newHabitXp, setNewHabitXp] = useState("10");
+  const [newHabitDiff, setNewHabitDiff] = useState<"easy" | "medium" | "hard">("medium");
 
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [editHabitName, setEditHabitName] = useState("");
   const [editHabitIco, setEditHabitIco] = useState("⚡");
   const [editHabitXp, setEditHabitXp] = useState("10");
+  const [editHabitDiff, setEditHabitDiff] = useState<"easy" | "medium" | "hard">("medium");
 
   const [catatanText, setCatatanText] = useState("");
   const [hoveredDay, setHoveredDay] = useState<{ date: string; label: string; count: number; names: string } | null>(null);
@@ -145,7 +147,10 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
         
       const dayXP = completedIds.reduce((sum, id) => {
         const h = habits.find((x) => x.id === id);
-        return sum + (h?.xp || 0);
+        if (!h) return sum;
+        const multiplier = h.difficulty === "hard" ? 2 : 
+                           h.difficulty === "easy" ? 1 : 1.5;
+        return sum + Math.round(h.xp * multiplier);
       }, 0);
       
       data.push({
@@ -297,9 +302,11 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
       icon: newHabitIco,
       name,
       xp: parsedXp,
+      difficulty: newHabitDiff,
     };
     onChange({ habits: [...habits, newHab] });
     setNewHabitName("");
+    setNewHabitDiff("medium");
     showToast(`✅ "${name}" ditambahkan!`);
   };
 
@@ -317,6 +324,7 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
     setEditHabitName(h.name);
     setEditHabitIco(h.icon);
     setEditHabitXp(String(h.xp));
+    setEditHabitDiff(h.difficulty || "medium");
   };
 
   const handleSaveEditHabit = () => {
@@ -328,7 +336,7 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
     }
     const parsedXp = parseInt(editHabitXp) || 10;
     const updatedHabits = habits.map((h) =>
-      h.id === editingHabit.id ? { ...h, icon: editHabitIco, name, xp: parsedXp } : h
+      h.id === editingHabit.id ? { ...h, icon: editHabitIco, name, xp: parsedXp, difficulty: editHabitDiff } : h
     );
     onChange({ habits: updatedHabits });
     setEditingHabit(null);
@@ -354,6 +362,26 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
           </div>
         ))}
       </div>
+
+      {/* Streak Freeze Banner */}
+      {(() => {
+        const freezes = state.streakFreezes !== undefined ? state.streakFreezes : 1;
+        if (freezes > 0) {
+          return (
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl px-4 py-2.5 text-xs text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-2">
+              <span>🛡️</span>
+              <span>{freezes} Streak Freeze tersedia &mdash; Streak-mu terlindungi jika bolong 1 hari</span>
+            </div>
+          );
+        } else {
+          return (
+            <div className="bg-zinc-50 dark:bg-zinc-900/55 border border-zinc-200 dark:border-zinc-800 rounded-2xl px-4 py-2.5 text-xs text-zinc-500 dark:text-zinc-400 font-bold flex items-center gap-2">
+              <span>🛡️</span>
+              <span>Tidak ada Streak Freeze tersisa. Jangan bolong hari ini!</span>
+            </div>
+          );
+        }
+      })()}
 
       {/* Progress Bar Card */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
@@ -614,8 +642,18 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
               
               <span className="text-2xl">{h.icon}</span>
               
-              <div className={`flex-1 text-xs font-extrabold ${isCompleted ? "text-zinc-400 line-through font-bold" : "text-zinc-800"}`}>
-                {h.name}
+              <div className="flex-1 flex items-center gap-1.5 flex-wrap">
+                <span className={`text-xs font-extrabold ${isCompleted ? "text-zinc-400 line-through font-bold" : "text-zinc-800"}`}>
+                  {h.name}
+                </span>
+                {h.difficulty === "easy" && (
+                  <span title="Mudah" className="cursor-help text-xs">🌱</span>
+                )}
+                {h.difficulty === "hard" && (
+                  <span title="Bonus XP" className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 text-[8px] px-1.5 py-0.5 rounded-full font-black select-none">
+                    🔥 +Bonus XP
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -665,6 +703,28 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
             onChange={(e) => setNewHabitName(e.target.value)}
             className="flex-1 min-w-[130px] bg-zinc-50 border border-zinc-200 text-zinc-800 rounded-2xl py-2 px-3 text-xs outline-none focus:bg-white focus:border-[#C9A84C]"
           />
+
+          <div className="flex items-center gap-1">
+            {[
+              { id: "easy", label: "🌱 Mudah", c: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400" },
+              { id: "medium", label: "⚡ Sedang", c: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400" },
+              { id: "hard", label: "🔥 Sulit", c: "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/50 dark:text-rose-400" },
+            ].map((d) => {
+              const active = newHabitDiff === d.id;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setNewHabitDiff(d.id as any)}
+                  className={`px-3 py-2 rounded-2xl text-[11px] transition-all cursor-pointer ${d.c} ${
+                    active ? "border-2 font-extrabold scale-105" : "border opacity-60"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              );
+            })}
+          </div>
 
           <input
             type="number"
@@ -747,6 +807,33 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
                 onChange={(e) => setEditHabitName(e.target.value)}
                 className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm focus:border-[#C9A84C] text-zinc-800 outline-none"
               />
+            </div>
+
+            <div>
+              <label className="block text-[9px] text-zinc-400 uppercase tracking-widest mb-2 font-bold">
+                Tingkat Kesulitan
+              </label>
+              <div className="flex items-center gap-2">
+                {[
+                  { id: "easy", label: "🌱 Mudah", c: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/20 dark:border-emerald-900/50 dark:text-emerald-400" },
+                  { id: "medium", label: "⚡ Sedang", c: "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400" },
+                  { id: "hard", label: "🔥 Sulit", c: "bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/20 dark:border-rose-900/50 dark:text-rose-400" },
+                ].map((d) => {
+                  const active = editHabitDiff === d.id;
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setEditHabitDiff(d.id as any)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs transition-all cursor-pointer text-center ${d.c} ${
+                        active ? "border-2 font-extrabold scale-105" : "border opacity-60"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>
