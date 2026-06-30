@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { AppState } from "./types";
 import { WTYPES, LEVELS, MONTHS_ID } from "./constants";
 import { fmtRp, fmtK, totalExp, totalWkXP, totalHabXP, getLv, makeDefaultState } from "./utils";
+import { getTranslation } from "./translations";
 
 // Tabs
 import OverviewTab from "./components/OverviewTab";
@@ -332,6 +333,47 @@ export default function App() {
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(workoutSheetData), "🏋️ Workout");
 
+      // sheet 3: Goals
+      const goalsSheetData = [
+        ["Nama Goal", "Target", "Progress", "Selesai (Ya/Tidak)", "Estimasi Selesai", "Kecepatan"],
+        ...(state.goals || []).map((g) => [
+          g.name,
+          g.target,
+          g.progress,
+          g.completed ? "Ya" : "Tidak",
+          g.deadline,
+          g.speed !== undefined ? g.speed : "Tidak diset",
+        ]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(goalsSheetData), "🎯 Goals");
+
+      // sheet 4: Habit History
+      const habitHistorySheetData = [
+        ["Tanggal", "Jumlah Habit Selesai", "Daftar ID Habit Selesai"],
+        ...Object.entries(state.habitHistory || {}).map(([date, ids]) => {
+          const habitIds = (ids || []) as number[];
+          return [
+            date,
+            habitIds.length,
+            habitIds.join(", "),
+          ];
+        }),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(habitHistorySheetData), "✅ Habit History");
+
+      // sheet 5: Activity Log
+      const activityLogsSheetData = [
+        ["Waktu", "Tipe", "Aksi", "Detail", "Nilai"],
+        ...(state.activityLogs || []).map((log) => [
+          log.timestamp ? new Date(log.timestamp).toLocaleString("id-ID") : "",
+          log.type,
+          log.action,
+          log.details,
+          log.value,
+        ]),
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(activityLogsSheetData), "📋 Activity Log");
+
       XLSX.writeFile(wb, `LifeTracker_Export_${user}_${state.year}_${state.month + 1}.xlsx`);
       showToast("✅ Excel berhasil didownload!");
     };
@@ -577,8 +619,17 @@ export default function App() {
   const totalSpend = totalExp(state);
   const sisa = state.budget - totalSpend;
 
+  const t = getTranslation(state.lang);
+  const isDark = state.theme === "dark";
+
+  const getMonthName = (monthIdx: number, lang: string) => {
+    const monthsEN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthsID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    return lang === "en" ? monthsEN[monthIdx] : monthsID[monthIdx];
+  };
+
   return (
-    <div className="min-h-screen bg-[#FAF9F6] text-zinc-800 relative pb-16 font-sans">
+    <div className={`min-h-screen relative pb-16 font-sans transition-colors duration-300 ${isDark ? "dark bg-zinc-950 text-zinc-100" : "bg-[#FAF9F6] text-zinc-800"}`}>
       {/* Dynamic Background Gradients */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vh] rounded-full bg-[#C9A84C]/[0.05] blur-[150px]" />
@@ -595,16 +646,16 @@ export default function App() {
       </div>
 
       {/* TOPBAR */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-zinc-200/50 px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-900/85 backdrop-blur-md border-b border-zinc-200/50 dark:border-zinc-800/80 px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.01)]">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-2xl drop-shadow-sm">⚡</span>
             <div>
-              <div className="text-sm font-extrabold text-zinc-900 tracking-tight">
+              <div className="text-sm font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">
                 {state.name || "Life Tracker"}
               </div>
-              <div className="text-[9px] text-zinc-400 tracking-widest uppercase font-extrabold mt-0.5">
-                {MONTHS_ID[state.month]} {state.year}
+              <div className="text-[9px] text-zinc-400 dark:text-zinc-500 tracking-widest uppercase font-extrabold mt-0.5">
+                {getMonthName(state.month, state.lang || "id")} {state.year}
               </div>
             </div>
           </div>
@@ -615,11 +666,11 @@ export default function App() {
               <span className="text-[11px] font-black" style={{ color: lv.color === "#C9A84C" ? "#B8860B" : lv.color }}>
                 Lv.{lv.num} {lv.title}
               </span>
-              <span className="text-[9px] text-zinc-400 font-bold font-mono">
+              <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold font-mono">
                 {lv.cur} / {lv.need} XP
               </span>
             </div>
-            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden p-[1px] border border-zinc-200/20">
+            <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden p-[1px] border border-zinc-200/20 dark:border-zinc-800">
               <div
                 className="h-full rounded-full transition-all duration-500 shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
                 style={{ width: `${lv.pct}%`, backgroundColor: lv.color }}
@@ -629,35 +680,35 @@ export default function App() {
 
           {/* Quick Stats Pills */}
           <div className="flex items-center gap-2 text-[10px]">
-            <div className="bg-white border border-zinc-200/60 shadow-[0_2px_6px_rgba(0,0,0,0.01)] py-1 px-3 rounded-full flex items-center gap-1.5">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 shadow-[0_2px_6px_rgba(0,0,0,0.01)] py-1 px-3 rounded-full flex items-center gap-1.5">
               <span>💰</span>
               <span
                 className={`font-extrabold font-mono ${
-                  sisa >= 0 ? "text-emerald-600" : "text-rose-600"
+                  sisa >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
                 }`}
               >
                 Rp{fmtK(sisa)}
               </span>
-              <span className="text-zinc-400 uppercase text-[7px] font-extrabold">Sisa</span>
+              <span className="text-zinc-400 dark:text-zinc-500 uppercase text-[7px] font-extrabold">{t.remaining}</span>
             </div>
 
-            <div className="bg-white border border-zinc-200/60 shadow-[0_2px_6px_rgba(0,0,0,0.01)] py-1 px-3 rounded-full flex items-center gap-1.5">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 shadow-[0_2px_6px_rgba(0,0,0,0.01)] py-1 px-3 rounded-full flex items-center gap-1.5">
               <span className="text-orange-500">🔥</span>
-              <span className="font-extrabold font-mono text-orange-600">{state.streak || 0}</span>
-              <span className="text-zinc-400 uppercase text-[7px] font-extrabold">Streak</span>
+              <span className="font-extrabold font-mono text-orange-600 dark:text-orange-400">{state.streak || 0}</span>
+              <span className="text-zinc-400 dark:text-zinc-500 uppercase text-[7px] font-extrabold">{t.streak}</span>
             </div>
 
-            <div className="bg-white border border-zinc-200/60 shadow-[0_2px_6px_rgba(0,0,0,0.01)] py-1 px-3 rounded-full flex items-center gap-1.5">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/80 shadow-[0_2px_6px_rgba(0,0,0,0.01)] py-1 px-3 rounded-full flex items-center gap-1.5">
               <span className="text-indigo-500">⭐</span>
-              <span className="font-extrabold font-mono text-indigo-600">{xp}</span>
-              <span className="text-zinc-400 uppercase text-[7px] font-extrabold">XP</span>
+              <span className="font-extrabold font-mono text-indigo-600 dark:text-indigo-400">{xp}</span>
+              <span className="text-zinc-400 dark:text-zinc-500 uppercase text-[7px] font-extrabold">XP</span>
             </div>
           </div>
         </div>
       </header>
 
       {/* CLOUD AUTOSAVE STATUS BAR */}
-      <div className="bg-white/40 border-b border-zinc-200/50 px-4 py-2">
+      <div className="bg-white/40 dark:bg-zinc-900/40 border-b border-zinc-200/50 dark:border-zinc-800/50 px-4 py-2">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-2.5">
           <div className="flex items-center gap-2">
             <div
@@ -672,60 +723,60 @@ export default function App() {
             <span
               className={`text-[10px] font-bold tracking-wide ${
                 syncStatus === "saved"
-                  ? "text-emerald-600"
+                  ? "text-emerald-600 dark:text-emerald-400"
                   : syncStatus === "saving"
-                  ? "text-amber-600"
-                  : "text-rose-600"
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-rose-600 dark:text-rose-400"
               }`}
             >
               {syncStatus === "saved"
-                ? "Saved to cloud"
+                ? t.savedToCloud
                 : syncStatus === "saving"
-                ? "Saving changes..."
-                : "Offline mode"}
+                ? t.savingChanges
+                : t.offlineMode}
             </span>
           </div>
 
           <div className="flex items-center gap-1.5">
             <button
               onClick={handleExportExcel}
-              className="bg-white border border-zinc-200/80 hover:bg-zinc-50 active:bg-zinc-100 text-zinc-700 rounded-lg px-2.5 py-1 text-[10px] font-extrabold transition-colors tracking-wide cursor-pointer shadow-sm"
+              className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 text-zinc-700 dark:text-zinc-300 rounded-lg px-2.5 py-1 text-[10px] font-extrabold transition-colors tracking-wide cursor-pointer shadow-sm"
             >
-              📊 Excel Backup
+              📊 {t.excelBackup}
             </button>
             <button
               onClick={handleLogout}
-              className="bg-rose-50 border border-rose-100 hover:bg-rose-100/70 text-rose-600 rounded-lg px-2.5 py-1 text-[10px] font-extrabold transition-colors tracking-wide cursor-pointer shadow-sm"
+              className="bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 hover:bg-rose-100/70 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 rounded-lg px-2.5 py-1 text-[10px] font-extrabold transition-colors tracking-wide cursor-pointer shadow-sm"
             >
-              Keluar
+              {t.exit}
             </button>
-            <span className="text-[9px] text-zinc-400 font-bold ml-1 font-mono">
-              Update: {lastSavedTime}
+            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold ml-1 font-mono">
+              {t.updateTime}: {lastSavedTime}
             </span>
           </div>
         </div>
       </div>
 
       {/* MAIN VIEW CONTROLLER TABS */}
-      <div className="bg-white/60 sticky top-[69px] sm:top-[61px] z-30 border-b border-zinc-200/50 backdrop-blur-md">
+      <div className="bg-white/60 dark:bg-zinc-900/60 sticky top-[69px] sm:top-[61px] z-30 border-b border-zinc-200/50 dark:border-zinc-800/85 backdrop-blur-md">
         <div className="max-w-4xl mx-auto flex overflow-x-auto scrollbar-none px-2">
           {[
-            { id: "overview", label: "⚡ Overview" },
-            { id: "expense", label: "💰 Pengeluaran" },
-            { id: "workout", label: "🏋️ Workout" },
-            { id: "habit", label: "✅ Habits" },
-            { id: "goals", label: "🎯 Goals" },
-            { id: "report", label: "📊 Laporan" },
-            { id: "history", label: "📈 Histori" },
-            { id: "settings", label: "⚙️ Pengaturan" },
+            { id: "overview", label: `⚡ ${t.overview}` },
+            { id: "expense", label: `💰 ${t.expense}` },
+            { id: "workout", label: `🏋️ ${t.workout}` },
+            { id: "habit", label: `✅ ${t.habit}` },
+            { id: "goals", label: `🎯 ${t.goals}` },
+            { id: "report", label: `📊 ${t.report}` },
+            { id: "history", label: `📈 ${t.history}` },
+            { id: "settings", label: `⚙️ ${t.settings}` },
           ].map((tb) => (
             <button
               key={tb.id}
               onClick={() => setActiveTab(tb.id as TabId)}
               className={`py-3 px-4 text-xs font-bold tracking-wider uppercase border-b-2 whitespace-nowrap transition-all outline-none cursor-pointer ${
                 activeTab === tb.id
-                  ? "text-[#B8860B] border-[#C9A84C] font-black"
-                  : "text-zinc-400 border-transparent hover:text-zinc-700 hover:border-zinc-200"
+                  ? "text-[#B8860B] dark:text-[#C9A84C] border-[#C9A84C] font-black"
+                  : "text-zinc-400 dark:text-zinc-500 border-transparent hover:text-zinc-700 dark:hover:text-zinc-300 hover:border-zinc-200 dark:hover:border-zinc-800"
               }`}
             >
               {tb.label}

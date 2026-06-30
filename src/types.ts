@@ -61,7 +61,8 @@ export interface AppState {
   longestStreak?: number;
   activityLogs?: HistoryLog[];
   expenseHistory?: Record<string, MonthlyExpenseSnapshot>; // key is "YYYY-MM"
-  weeklyHighlights?: WeeklyHighlights;
+  theme?: "light" | "dark";
+  lang?: "id" | "en";
 }
 
 export interface HistoryLog {
@@ -90,16 +91,6 @@ export interface Goal {
   completed: boolean;
   speed?: number; // Kecepatan saat ini (Rp per minggu atau unit/minggu)
   estimatedDate?: string; // Estimasi tanggal selesai (YYYY-MM-DD)
-}
-
-export interface WeeklyHighlights {
-  expenseChange: string;
-  expenseStatus: "success" | "warning" | "info" | "neutral";
-  habitChange: string;
-  habitStatus: "success" | "warning" | "info" | "neutral";
-  workoutChange: string;
-  workoutStatus: "success" | "warning" | "info" | "neutral";
-  suggestion: string;
 }
 
 export interface LevelDefinition {

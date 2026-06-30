@@ -21,6 +21,51 @@ export default function GoalsTab({ state, onChange, showToast }: GoalsTabProps) 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
 
+  // Quick Progress Input States & Handler
+  const [quickInputValues, setQuickInputValues] = useState<Record<string, string>>({});
+
+  const handleSubmitQuickInput = (g: Goal) => {
+    const valStr = quickInputValues[g.id];
+    const newValue = valStr !== undefined && valStr !== "" ? parseFloat(valStr) : g.progress;
+    
+    if (isNaN(newValue)) {
+      showToast("❌ Masukkan angka yang valid!");
+      return;
+    }
+    if (newValue < 0) {
+      showToast("❌ Progress tidak boleh negatif!");
+      return;
+    }
+    if (newValue > g.target) {
+      showToast(`❌ Progress tidak boleh melebihi target (${formatMetric(g.target)})!`);
+      return;
+    }
+
+    const updatedGoals = goals.map((item) => {
+      if (item.id === g.id) {
+        const isNowCompleted = newValue >= item.target;
+        if (isNowCompleted && !item.completed) {
+          showToast(`🏆 Goal tercapai!`);
+        } else {
+          showToast(`🎯 Progress Goal "${item.name}" diatur ke ${formatMetric(newValue)}!`);
+        }
+        return {
+          ...item,
+          progress: newValue,
+          completed: isNowCompleted,
+        };
+      }
+      return item;
+    });
+
+    onChange({ goals: updatedGoals });
+    setQuickInputValues((prev) => {
+      const copy = { ...prev };
+      delete copy[g.id];
+      return copy;
+    });
+  };
+
   // Form states
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
@@ -436,9 +481,34 @@ export default function GoalsTab({ state, onChange, showToast }: GoalsTabProps) 
                     </div>
                   </div>
 
+                  {/* Row Baru: Input Progress Langsung */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="number"
+                      placeholder="Set progress ke..."
+                      value={quickInputValues[g.id] !== undefined ? quickInputValues[g.id] : g.progress}
+                      onChange={(e) => setQuickInputValues({ ...quickInputValues, [g.id]: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleSubmitQuickInput(g);
+                        }
+                      }}
+                      className="bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-xs w-28 font-mono text-zinc-800"
+                      min="0"
+                      max={g.target}
+                      step="any"
+                    />
+                    <button
+                      onClick={() => handleSubmitQuickInput(g)}
+                      className="px-3 py-1 text-xs font-bold bg-[#C9A84C] hover:bg-[#B8860B] hover:text-white text-[#1a1500] rounded-lg transition-colors cursor-pointer animate-fade-in"
+                    >
+                      Set
+                    </button>
+                  </div>
+
                   {/* Actions Bar */}
                   <div className="flex items-center justify-between pt-3 border-t border-zinc-100 mt-4">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         onClick={() => handleAdjustProgress(g, -1)}
                         disabled={g.progress <= 0}
@@ -455,7 +525,7 @@ export default function GoalsTab({ state, onChange, showToast }: GoalsTabProps) 
                       >
                         +
                       </button>
-
+                      
                       {/* Quick increments for larger targets */}
                       {g.target >= 10 && (
                         <button

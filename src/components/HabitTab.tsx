@@ -190,6 +190,54 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
     weeks.push(graphDays.slice(i, i + 7));
   }
 
+  // Generate 91 days (13 weeks of Monday - Sunday) ending with the current week
+  const getHeatmapWeeks = () => {
+    const today = new Date();
+    const todayDay = today.getDay();
+    const todayIndex = todayDay === 0 ? 6 : todayDay - 1;
+
+    // Get Monday of current week
+    const currentMon = new Date(today);
+    currentMon.setDate(today.getDate() - todayIndex);
+    currentMon.setHours(0, 0, 0, 0);
+
+    // Start Monday is 12 weeks before this week's Monday (total 13 weeks)
+    const startMon = new Date(currentMon);
+    startMon.setDate(currentMon.getDate() - 12 * 7);
+
+    const weeksList = [];
+    for (let w = 0; w < 13; w++) {
+      const weekDays = [];
+      for (let d = 0; d < 7; d++) {
+        const dateObj = new Date(startMon);
+        dateObj.setDate(startMon.getDate() + w * 7 + d);
+        const dStr = dateObj.toISOString().slice(0, 10);
+        weekDays.push({
+          date: dStr,
+          dateObj,
+        });
+      }
+      weeksList.push(weekDays);
+    }
+    return weeksList;
+  };
+
+  const heatmapWeeks = getHeatmapWeeks();
+
+  let activeDaysCount = 0;
+  heatmapWeeks.forEach((week) => {
+    week.forEach((day) => {
+      if (day.date <= todayKey) {
+        const completedIds = day.date === todayKey
+          ? Object.values(state.checkedToday || {}).map(Number)
+          : habitHistory[day.date] || [];
+        if (completedIds.length > 0) {
+          activeDaysCount++;
+        }
+      }
+    });
+  });
+
   const getMonthLabels = () => {
     const labels: { index: number; text: string }[] = [];
     let prevMonth = -1;
@@ -462,6 +510,83 @@ export default function HabitTab({ state, onChange, showToast }: HabitTabProps) 
         <div className="flex justify-between items-center mt-2 font-mono">
           <span className="text-[9px] text-zinc-400 font-extrabold uppercase">☁️ Tersimpan otomatis saat mengetik</span>
           <span className="text-[9px] text-emerald-600 font-black uppercase">Autosaved</span>
+        </div>
+      </div>
+
+      {/* TUGAS 2: Habit Heatmap Calendar */}
+      <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-6">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-3 flex items-center gap-1.5">
+          📊 Habit Heatmap &mdash; 91 Hari Terakhir
+        </h4>
+        
+        <div className="flex items-start gap-2.5 overflow-x-auto pb-2">
+          {/* Day of Week Labels */}
+          <div className="flex flex-col justify-between pt-[14px] text-[8px] text-zinc-400 font-bold uppercase w-6 h-[96px] select-none">
+            <span>Sen</span>
+            <span>Rab</span>
+            <span>Jum</span>
+            <span>Min</span>
+          </div>
+
+          {/* Grid of Weeks */}
+          <div className="flex gap-[2px]">
+            {heatmapWeeks.map((week, wIdx) => (
+              <div key={wIdx} className="flex flex-col gap-[2px]">
+                {week.map((day) => {
+                  const isFuture = day.date > todayKey;
+                  const completedIds = isFuture
+                    ? []
+                    : day.date === todayKey
+                    ? Object.values(state.checkedToday || {}).map(Number)
+                    : habitHistory[day.date] || [];
+                  
+                  const count = completedIds.length;
+                  const pctDone = totalCount > 0 ? (count / totalCount) * 100 : 0;
+                  
+                  let cellColor = "bg-zinc-100 border border-zinc-200/10";
+                  if (isFuture) {
+                    cellColor = "bg-zinc-50 border border-dashed border-zinc-200 opacity-40";
+                  } else if (pctDone > 0) {
+                    if (pctDone <= 33) cellColor = "bg-emerald-200 border border-emerald-300/10";
+                    else if (pctDone <= 66) cellColor = "bg-emerald-400 border border-emerald-500/10";
+                    else if (pctDone <= 99) cellColor = "bg-emerald-500 border border-emerald-600/10";
+                    else cellColor = "bg-emerald-600 border border-emerald-700/10";
+                  }
+
+                  const formattedDate = new Date(day.date).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric"
+                  });
+
+                  return (
+                    <div
+                      key={day.date}
+                      title={isFuture ? `${formattedDate} (Mendatang)` : `Tanggal: ${formattedDate} | Habit selesai: ${count}/${totalCount}`}
+                      className="w-[12px] h-[12px] rounded-[2px] transition-all duration-150"
+                      style={{
+                        backgroundColor: isFuture ? undefined : (pctDone === 0 ? "#f4f4f5" : pctDone <= 33 ? "#a7f3d0" : pctDone <= 66 ? "#34d399" : pctDone <= 99 ? "#10b981" : "#059669")
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Legend & Summary */}
+        <div className="flex flex-col sm:flex-row justify-between items-center mt-3 gap-2 text-[10px] text-zinc-400 font-bold border-t border-zinc-100 pt-2.5">
+          <span>🎯 {activeDaysCount} hari aktif dari 91 hari terakhir</span>
+          <div className="flex items-center gap-1 select-none">
+            <span className="text-[9px]">Kosong</span>
+            <div className="w-[10px] h-[10px] rounded-[1px] bg-zinc-100 border border-zinc-200/20" />
+            <div className="w-[10px] h-[10px] rounded-[1px] bg-emerald-200" />
+            <div className="w-[10px] h-[10px] rounded-[1px] bg-emerald-400" />
+            <div className="w-[10px] h-[10px] rounded-[1px] bg-emerald-500" />
+            <div className="w-[10px] h-[10px] rounded-[1px] bg-emerald-600" />
+            <span className="text-[9px]">Penuh</span>
+          </div>
         </div>
       </div>
 

@@ -321,14 +321,7 @@ export function makeDefaultState(name = ""): AppState {
     habitHistory: mockHistory,
     activityLogs: mockActivityLogs,
     expenseHistory: mockExpenseHistory,
-    weeklyHighlights: {
-      expenseChange: "turun 12%",
-      expenseStatus: "success",
-      habitChange: "naik 18%",
-      habitStatus: "success",
-      workoutChange: "turun 20%",
-      workoutStatus: "warning",
-      suggestion: "Tambah 2 sesi workout minggu depan."
-    }
+    theme: "light",
+    lang: "id"
   };
 }

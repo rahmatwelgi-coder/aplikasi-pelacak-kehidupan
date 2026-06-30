@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { AppState } from "../types";
 import { MONTHS_ID, WTYPES, ECATS } from "../constants";
+import { getTranslation } from "../translations";
 
 interface SettingsTabProps {
   state: AppState;
@@ -24,6 +25,8 @@ export default function SettingsTab({
   onResetAllData,
   username,
 }: SettingsTabProps) {
+  const t = getTranslation(state.lang);
+
   // Local state for profile values to avoid double rendering lag
   const [profileName, setProfileName] = useState(state.name || "");
   const [profileBudget, setProfileBudget] = useState(state.budget.toLocaleString("id-ID"));
@@ -241,6 +244,69 @@ Tugas Kamu:
         </button>
       </div>
 
+      {/* App Preferences Card (Theme & Language) */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-5 space-y-4">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-2">
+          ⚙️ {t.settingsPreferences}
+        </h4>
+        <div className="space-y-4">
+          {/* Bahasa */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-3">
+            <div>
+              <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{t.languageLabel}</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Pilih bahasa / Select language</div>
+            </div>
+            <select
+              value={state.lang || "id"}
+              onChange={(e) => {
+                onChange({ lang: e.target.value as "id" | "en" });
+                showToast(e.target.value === "id" ? "✅ Bahasa diatur ke Indonesia!" : "✅ Language set to English!");
+              }}
+              className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl py-2.5 px-3 text-xs outline-none focus:bg-white dark:focus:bg-zinc-700 focus:border-[#C9A84C] font-semibold text-zinc-800 dark:text-zinc-100 w-[160px]"
+            >
+              <option value="id" className="text-zinc-800 dark:text-zinc-100">Bahasa Indonesia</option>
+              <option value="en" className="text-zinc-800 dark:text-zinc-100">English</option>
+            </select>
+          </div>
+
+          {/* Tema */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{t.themeLabel}</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">Tampilan gelap/terang / Dark/light mode</div>
+            </div>
+            <div className="flex gap-1 bg-zinc-50 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <button
+                onClick={() => {
+                  onChange({ theme: "light" });
+                  showToast("☀️ Mode Terang!");
+                }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  state.theme !== "dark"
+                    ? "bg-white dark:bg-zinc-700 text-[#B8860B] shadow-sm font-extrabold"
+                    : "text-zinc-400 hover:text-zinc-300 dark:hover:text-zinc-200"
+                }`}
+              >
+                ☀️ {t.themeLight}
+              </button>
+              <button
+                onClick={() => {
+                  onChange({ theme: "dark" });
+                  showToast("🌙 Mode Gelap!");
+                }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  state.theme === "dark"
+                    ? "bg-zinc-700 text-[#C9A84C] shadow-sm font-extrabold"
+                    : "text-zinc-400 hover:text-zinc-300 dark:hover:text-zinc-200"
+                }`}
+              >
+                🌙 {t.themeDark}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 3. Workout Streak Settings */}
       <div className="bg-white border border-zinc-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.02)] rounded-3xl p-5 space-y-4">
         <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-2">
@@ -331,7 +397,14 @@ Tugas Kamu:
         </p>
 
         <div className="space-y-1 max-h-[220px] overflow-y-auto pr-1">
-          {ECATS.filter((c) => c.id !== "tabungan").map((c) => {
+          {[
+            ...ECATS.filter((c) => c.id !== "tabungan"),
+            ...(state.customExp || []).map((e) => ({
+              id: e.id,
+              icon: e.icon || "📦",
+              label: e.name,
+            }))
+          ].map((c) => {
             const limitVal = state.catBudget?.[c.id] || "";
             return (
               <div

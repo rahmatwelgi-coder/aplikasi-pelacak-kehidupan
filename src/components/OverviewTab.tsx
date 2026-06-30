@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { AppState, WeeklyHighlights } from "../types";
+import { AppState } from "../types";
 import { ECATS, WTYPES } from "../constants";
 import { fmtRp, fmtK, totalExp, totalWkXP, getLv } from "../utils";
 import {
@@ -21,6 +21,11 @@ import {
   CartesianGrid,
   BarChart,
   Bar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts";
 
 interface OverviewTabProps {
@@ -30,52 +35,133 @@ interface OverviewTabProps {
 }
 
 export default function OverviewTab({ state, onChange, showToast }: OverviewTabProps) {
-  const defaultWeekly: WeeklyHighlights = {
-    expenseChange: "turun 12%",
-    expenseStatus: "success",
-    habitChange: "naik 18%",
-    habitStatus: "success",
-    workoutChange: "turun 20%",
-    workoutStatus: "warning",
-    suggestion: "Tambah 2 sesi workout minggu depan."
-  };
-  const weekly = state.weeklyHighlights || defaultWeekly;
-
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [expenseChange, setExpenseChange] = useState(weekly.expenseChange);
-  const [expenseStatus, setExpenseStatus] = useState<"success" | "warning" | "info" | "neutral">(weekly.expenseStatus);
-  const [habitChange, setHabitChange] = useState(weekly.habitChange);
-  const [habitStatus, setHabitStatus] = useState<"success" | "warning" | "info" | "neutral">(weekly.habitStatus);
-  const [workoutChange, setWorkoutChange] = useState(weekly.workoutChange);
-  const [workoutStatus, setWorkoutStatus] = useState<"success" | "warning" | "info" | "neutral">(weekly.workoutStatus);
-  const [suggestion, setSuggestion] = useState(weekly.suggestion);
-
-  const openEdit = () => {
-    const current = state.weeklyHighlights || defaultWeekly;
-    setExpenseChange(current.expenseChange);
-    setExpenseStatus(current.expenseStatus);
-    setHabitChange(current.habitChange);
-    setHabitStatus(current.habitStatus);
-    setWorkoutChange(current.workoutChange);
-    setWorkoutStatus(current.workoutStatus);
-    setSuggestion(current.suggestion);
-    setIsEditOpen(true);
+  // --- AUTOMATIC WEEKLY HIGHLIGHTS CALCULATIONS ---
+  const getNDaysAgoKey = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
   };
 
-  const handleSave = () => {
-    const updated: WeeklyHighlights = {
-      expenseChange,
-      expenseStatus,
-      habitChange,
-      habitStatus,
-      workoutChange,
-      workoutStatus,
-      suggestion,
-    };
-    onChange({ weeklyHighlights: updated });
-    setIsEditOpen(false);
-    showToast("✨ Ringkasan Mingguan berhasil diperbarui!", "success");
-  };
+  const thisWeekKeys = Array.from({ length: 7 }, (_, i) => getNDaysAgoKey(i));
+  const prevWeekKeys = Array.from({ length: 7 }, (_, i) => getNDaysAgoKey(i + 7));
+
+  // Habit checks count
+  const habitHist = state.habitHistory || {};
+  let thisWeekHabits = 0;
+  let prevWeekHabits = 0;
+  thisWeekKeys.forEach((key) => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    if (key === todayKey) {
+      thisWeekHabits += Object.keys(state.checkedToday || {}).length;
+    } else {
+      thisWeekHabits += (habitHist[key] || []).length;
+    }
+  });
+  prevWeekKeys.forEach((key) => {
+    prevWeekHabits += (habitHist[key] || []).length;
+  });
+
+  // Workouts count
+  const wks = state.workouts || {};
+  let thisWeekWorkouts = 0;
+  let prevWeekWorkouts = 0;
+  thisWeekKeys.forEach((key) => {
+    if (wks[key] && wks[key].type !== "rest") thisWeekWorkouts++;
+  });
+  prevWeekKeys.forEach((key) => {
+    if (wks[key] && wks[key].type !== "rest") prevWeekWorkouts++;
+  });
+
+  // Expense WoW from activity logs
+  let thisWeekExp = 0;
+  let prevWeekExp = 0;
+  const logs = state.activityLogs || [];
+  const today = new Date();
+  
+  const oneWeekAgo = new Date(today);
+  oneWeekAgo.setDate(today.getDate() - 7);
+  oneWeekAgo.setHours(0,0,0,0);
+  
+  const twoWeeksAgo = new Date(today);
+  twoWeeksAgo.setDate(today.getDate() - 14);
+  twoWeeksAgo.setHours(0,0,0,0);
+
+  logs.forEach((log) => {
+    if (log.type === "expense" && log.value) {
+      const logDate = new Date(log.timestamp);
+      if (logDate >= oneWeekAgo && logDate <= today) {
+        thisWeekExp += log.value;
+      } else if (logDate >= twoWeeksAgo && logDate < oneWeekAgo) {
+        prevWeekExp += log.value;
+      }
+    }
+  });
+
+  // 1. Expense Change
+  let expenseChange = "stabil (Rp 0)";
+  let expenseStatus: "success" | "warning" | "neutral" = "neutral";
+  const expDiff = thisWeekExp - prevWeekExp;
+  if (prevWeekExp === 0 && thisWeekExp === 0) {
+    expenseChange = "stabil (Rp 0)";
+    expenseStatus = "success";
+  } else if (prevWeekExp === 0) {
+    expenseChange = `naik (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp 0)`;
+    expenseStatus = "warning";
+  } else {
+    const pctDiff = Math.round((Math.abs(expDiff) / prevWeekExp) * 100);
+    if (expDiff < 0) {
+      expenseChange = `turun ${pctDiff}% (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp ${prevWeekExp.toLocaleString("id-ID")})`;
+      expenseStatus = "success";
+    } else if (expDiff > 0) {
+      expenseChange = `naik ${pctDiff}% (Rp ${thisWeekExp.toLocaleString("id-ID")} vs Rp ${prevWeekExp.toLocaleString("id-ID")})`;
+      expenseStatus = "warning";
+    } else {
+      expenseChange = `stabil (Rp ${thisWeekExp.toLocaleString("id-ID")})`;
+      expenseStatus = "neutral";
+    }
+  }
+
+  // 2. Workout Change
+  let workoutChange = `stabil (${thisWeekWorkouts} sesi)`;
+  let workoutStatus: "success" | "warning" | "neutral" = "neutral";
+  const wkDiff = thisWeekWorkouts - prevWeekWorkouts;
+  if (wkDiff > 0) {
+    workoutChange = `naik (${thisWeekWorkouts} vs ${prevWeekWorkouts} sesi)`;
+    workoutStatus = "success";
+  } else if (wkDiff < 0) {
+    workoutChange = `turun (${thisWeekWorkouts} vs ${prevWeekWorkouts} sesi)`;
+    workoutStatus = "warning";
+  } else {
+    workoutChange = `stabil (${thisWeekWorkouts} sesi)`;
+    workoutStatus = "neutral";
+  }
+
+  // 3. Habit Change
+  let habitChange = `stabil (${thisWeekHabits} selesai)`;
+  let habitStatus: "success" | "warning" | "neutral" = "neutral";
+  const hbDiff = thisWeekHabits - prevWeekHabits;
+  if (hbDiff > 0) {
+    habitChange = `naik (${thisWeekHabits} vs ${prevWeekHabits} selesai)`;
+    habitStatus = "success";
+  } else if (hbDiff < 0) {
+    habitChange = `turun (${thisWeekHabits} vs ${prevWeekHabits} selesai)`;
+    habitStatus = "warning";
+  } else {
+    habitChange = `stabil (${thisWeekHabits} selesai)`;
+    habitStatus = "neutral";
+  }
+
+  // 4. Action Recommendation
+  let suggestion = "Semuanya berjalan lancar! Pertahankan konsistensi ini.";
+  if (expenseStatus === "warning" && workoutStatus === "warning") {
+    suggestion = "Pengeluaran naik dan sesi workout berkurang. Fokus kurangi jajan dan luangkan waktu 15 menit untuk workout ringan!";
+  } else if (expenseStatus === "warning") {
+    suggestion = "Pengeluaran kamu meningkat minggu ini. Batasi belanja non-esensial dan fokus hemat di beberapa hari ke depan.";
+  } else if (workoutStatus === "warning") {
+    suggestion = "Frekuensi olahraga kamu menurun. Yuk, kembalikan energi dengan sesi stretching atau latihan fisik singkat!";
+  } else if (habitStatus === "warning") {
+    suggestion = "Konsistensi habit kamu sedang kendor. Coba tuntaskan setidaknya satu kebiasaan utama di pagi hari.";
+  }
 
   const renderStatusIcon = (status: "success" | "warning" | "info" | "neutral") => {
     switch (status) {
@@ -208,61 +294,80 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
       {/* Dynamic & Premium Life Score Hero Section */}
       <div className="bg-white border border-zinc-200/60 shadow-[0_12px_40px_rgba(0,0,0,0.02)] rounded-3xl p-6 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-          {/* Circular Score Gauge */}
-          <div className="md:col-span-5 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-zinc-100 pb-6 md:pb-0 md:pr-8">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-4">
-              Indeks Kualitas Hidup
-            </h3>
-            <div className="relative w-40 h-40 flex items-center justify-center">
-              {/* SVG Ring Progress */}
-              <svg className="w-full h-full transform -rotate-90">
-                {/* Background Ring */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="68"
-                  className="stroke-zinc-100"
-                  strokeWidth="8"
-                  fill="none"
-                />
-                {/* Active Progress Ring */}
-                <circle
-                  cx="80"
-                  cy="80"
-                  r="68"
-                  className="stroke-[#C9A84C] transition-all duration-1000 ease-out"
-                  strokeWidth="8"
-                  fill="none"
-                  strokeDasharray={427.2}
-                  strokeDashoffset={427.2 - (427.2 * lifeScore) / 100}
-                  strokeLinecap="round"
-                />
-              </svg>
-              {/* Inner Score Label */}
-              <div className="absolute flex flex-col items-center">
-                <span className="text-4xl font-extrabold text-zinc-900 tracking-tight font-mono">
-                  {lifeScore}
-                </span>
-                <span className="text-[9px] text-zinc-400 font-extrabold tracking-widest uppercase mt-0.5">
-                  Life Score
-                </span>
-                <span className="text-[8px] text-zinc-300 font-bold font-mono mt-0.5">
-                  /100
-                </span>
+          {/* Circular Score Gauge & Radar Chart */}
+          <div className="md:col-span-6 flex flex-col sm:flex-row items-center justify-center gap-6 border-b md:border-b-0 md:border-r border-zinc-100 pb-6 md:pb-0 md:pr-6">
+            <div className="flex flex-col items-center">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B8860B] mb-4">
+                Indeks Kualitas Hidup
+              </h3>
+              <div className="relative w-36 h-36 flex items-center justify-center">
+                {/* SVG Ring Progress */}
+                <svg className="w-full h-full transform -rotate-90">
+                  {/* Background Ring */}
+                  <circle
+                    cx="72"
+                    cy="72"
+                    r="60"
+                    className="stroke-zinc-100"
+                    strokeWidth="8"
+                    fill="none"
+                  />
+                  {/* Active Progress Ring */}
+                  <circle
+                    cx="72"
+                    cy="72"
+                    r="60"
+                    className="stroke-[#C9A84C] transition-all duration-1000 ease-out"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeDasharray={376.8}
+                    strokeDashoffset={376.8 - (376.8 * lifeScore) / 100}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                {/* Inner Score Label */}
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-3xl font-extrabold text-zinc-900 tracking-tight font-mono">
+                    {lifeScore}
+                  </span>
+                  <span className="text-[8px] text-zinc-400 font-extrabold tracking-widest uppercase mt-0.5">
+                    Life Score
+                  </span>
+                  <span className="text-[7px] text-zinc-300 font-bold font-mono mt-0.5">
+                    /100
+                  </span>
+                </div>
               </div>
+              <p className="text-[11px] text-zinc-400 font-medium mt-4 max-w-[160px] leading-relaxed text-center">
+                {lifeScore >= 80 
+                  ? "Luar biasa! Kamu menjaga keseimbangan hidup dengan sangat disiplin." 
+                  : lifeScore >= 60 
+                  ? "Bagus! Terus tingkatkan performa harianmu untuk hasil optimal." 
+                  : "Ayo lebih disiplin! Fokus perbaiki salah satu aspek hari ini."}
+              </p>
             </div>
-            
-            <p className="text-xs text-zinc-400 font-medium mt-4 max-w-[200px] leading-relaxed">
-              {lifeScore >= 80 
-                ? "Luar biasa! Kamu menjaga keseimbangan hidup dengan sangat disiplin." 
-                : lifeScore >= 60 
-                ? "Bagus! Terus tingkatkan performa harianmu untuk hasil optimal." 
-                : "Ayo lebih disiplin! Fokus perbaiki salah satu aspek hari ini."}
-            </p>
+
+            {/* Radar Chart */}
+            <div className="w-full sm:w-56 h-48 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="65%" data={[
+                  { subject: "Finansial", A: finScore },
+                  { subject: "Workout", A: workoutScore },
+                  { subject: "Habit", A: habitScore },
+                  { subject: "Goal", A: goalScore },
+                ]}>
+                  <PolarGrid stroke="#e4e4e7" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: "#71717a", fontSize: 9, fontWeight: 700 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
+                  <Radar name="Life Score" dataKey="A" stroke="#C9A84C" fill="#C9A84C" fillOpacity={0.3} />
+                  <RechartsTooltip />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Subscores Grid and Progress Bars */}
-          <div className="md:col-span-7 space-y-4.5">
+          <div className="md:col-span-6 space-y-4.5">
             <div>
               <h4 className="text-xs font-black text-zinc-800 tracking-wide uppercase mb-1">
                 Metrik Keseimbangan Hidup
@@ -347,12 +452,9 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
           <h3 className="text-xs font-black uppercase tracking-widest text-[#B8860B] flex items-center gap-2">
             <span>📈</span> Minggu Ini
           </h3>
-          <button
-            onClick={openEdit}
-            className="text-[10px] text-zinc-400 hover:text-[#B8860B] font-extrabold tracking-wider uppercase bg-zinc-50 border border-zinc-100 hover:border-zinc-200 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1"
-          >
-            ✏️ Edit Ringkasan
-          </button>
+          <span className="text-[9px] text-emerald-600 font-extrabold tracking-wider uppercase bg-emerald-50 border border-emerald-100 px-2.5 py-1.5 rounded-xl flex items-center gap-1 select-none">
+            🔄 Auto-Calculate
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
@@ -364,23 +466,23 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
             <div className="space-y-2.5 text-sm font-semibold text-zinc-700">
               <div className="flex items-center gap-2.5 bg-zinc-50/50 border border-zinc-100 rounded-2xl p-3">
                 <span className="w-6 h-6 rounded-full bg-emerald-50 text-center flex items-center justify-center border border-emerald-100">
-                  {renderStatusIcon(weekly.expenseStatus)}
+                  {renderStatusIcon(expenseStatus)}
                 </span>
-                <span className="text-zinc-600">Pengeluaran {weekly.expenseChange}</span>
+                <span className="text-zinc-600">Pengeluaran {expenseChange}</span>
               </div>
               
               <div className="flex items-center gap-2.5 bg-zinc-50/50 border border-zinc-100 rounded-2xl p-3">
                 <span className="w-6 h-6 rounded-full bg-blue-50 text-center flex items-center justify-center border border-blue-100">
-                  {renderStatusIcon(weekly.habitStatus)}
+                  {renderStatusIcon(habitStatus)}
                 </span>
-                <span className="text-zinc-600">Habit {weekly.habitChange}</span>
+                <span className="text-zinc-600">Habit {habitChange}</span>
               </div>
 
               <div className="flex items-center gap-2.5 bg-zinc-50/50 border border-zinc-100 rounded-2xl p-3">
                 <span className="w-6 h-6 rounded-full bg-amber-50 text-center flex items-center justify-center border border-amber-100">
-                  {renderStatusIcon(weekly.workoutStatus)}
+                  {renderStatusIcon(workoutStatus)}
                 </span>
-                <span className="text-zinc-600">Workout {weekly.workoutChange}</span>
+                <span className="text-zinc-600">Workout {workoutChange}</span>
               </div>
             </div>
           </div>
@@ -395,143 +497,13 @@ export default function OverviewTab({ state, onChange, showToast }: OverviewTabP
                 <span className="text-xl">💡</span>
                 <div>
                   <p className="font-semibold text-zinc-800 text-sm mb-1">Rencana Aksi</p>
-                  <p className="font-semibold text-zinc-600 leading-relaxed">{weekly.suggestion}</p>
+                  <p className="font-semibold text-zinc-600 leading-relaxed">{suggestion}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Edit Modal for Minggu Ini */}
-      {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white border border-zinc-200 shadow-2xl rounded-3xl w-full max-w-md p-6 overflow-hidden space-y-4">
-            <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
-              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-800">
-                ✏️ Edit Ringkasan Minggu Ini
-              </h3>
-              <button
-                onClick={() => setIsEditOpen(false)}
-                className="text-zinc-400 hover:text-zinc-600 font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4 text-xs">
-              {/* Pengeluaran */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] text-zinc-400 uppercase tracking-widest font-black">
-                  Pengeluaran
-                </label>
-                <div className="grid grid-cols-12 gap-2">
-                  <input
-                    type="text"
-                    value={expenseChange}
-                    onChange={(e) => setExpenseChange(e.target.value)}
-                    className="col-span-8 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C]"
-                    placeholder="e.g. turun 12%"
-                  />
-                  <select
-                    value={expenseStatus}
-                    onChange={(e) => setExpenseStatus(e.target.value as any)}
-                    className="col-span-4 bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C]"
-                  >
-                    <option value="success">✓ Sukses</option>
-                    <option value="warning">⚠ Peringatan</option>
-                    <option value="info">ℹ Info</option>
-                    <option value="neutral">• Netral</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Habit */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] text-zinc-400 uppercase tracking-widest font-black">
-                  Habit
-                </label>
-                <div className="grid grid-cols-12 gap-2">
-                  <input
-                    type="text"
-                    value={habitChange}
-                    onChange={(e) => setHabitChange(e.target.value)}
-                    className="col-span-8 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C]"
-                    placeholder="e.g. naik 18%"
-                  />
-                  <select
-                    value={habitStatus}
-                    onChange={(e) => setHabitStatus(e.target.value as any)}
-                    className="col-span-4 bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C]"
-                  >
-                    <option value="success">✓ Sukses</option>
-                    <option value="warning">⚠ Peringatan</option>
-                    <option value="info">ℹ Info</option>
-                    <option value="neutral">• Netral</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Workout */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] text-zinc-400 uppercase tracking-widest font-black">
-                  Workout
-                </label>
-                <div className="grid grid-cols-12 gap-2">
-                  <input
-                    type="text"
-                    value={workoutChange}
-                    onChange={(e) => setWorkoutChange(e.target.value)}
-                    className="col-span-8 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C]"
-                    placeholder="e.g. turun 20%"
-                  />
-                  <select
-                    value={workoutStatus}
-                    onChange={(e) => setWorkoutStatus(e.target.value as any)}
-                    className="col-span-4 bg-zinc-50 border border-zinc-200 rounded-xl px-2 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C]"
-                  >
-                    <option value="success">✓ Sukses</option>
-                    <option value="warning">⚠ Peringatan</option>
-                    <option value="info">ℹ Info</option>
-                    <option value="neutral">• Netral</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Saran */}
-              <div className="space-y-1.5">
-                <label className="block text-[9px] text-zinc-400 uppercase tracking-widest font-black">
-                  Saran / Rekomendasi
-                </label>
-                <textarea
-                  value={suggestion}
-                  onChange={(e) => setSuggestion(e.target.value)}
-                  rows={3}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2.5 outline-none focus:bg-white focus:border-[#C9A84C] font-semibold"
-                  placeholder="Masukkan saran mingguan..."
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-end pt-2 border-t border-zinc-100">
-              <button
-                type="button"
-                onClick={() => setIsEditOpen(false)}
-                className="px-4 py-2 text-xs font-bold text-zinc-500 hover:text-zinc-700 cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="px-5 py-2 text-xs font-black uppercase tracking-wider bg-[#C9A84C] hover:bg-[#B8860B] text-white rounded-xl transition-all cursor-pointer shadow-md shadow-[#C9A84C]/10"
-              >
-                Simpan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Grouped Modern KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

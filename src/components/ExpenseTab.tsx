@@ -267,15 +267,22 @@ export default function ExpenseTab({ state, onChange, showToast }: ExpenseTabPro
                   <span className={cat.locked ? "text-emerald-600 font-extrabold" : "text-zinc-800"}>
                     {cat.label}
                   </span>
-                  {overLimit && (
-                    <span className="text-[9px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-extrabold border border-rose-100">
-                      ⚠️ OVER LIMIT
-                    </span>
-                  )}
-                  {nearLimit && (
-                    <span className="text-[9px] bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-md font-extrabold border border-orange-100">
-                      ⚡ 80% LIMIT
-                    </span>
+                  {limit > 0 && (
+                    <>
+                      {limitPct >= 100 ? (
+                        <span className="text-[9px] bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded-md font-extrabold border border-rose-100 flex items-center gap-1">
+                          🔴 Overbudget
+                        </span>
+                      ) : limitPct >= 80 ? (
+                        <span className="text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md font-extrabold border border-amber-200 flex items-center gap-1">
+                          🟡 Hampir habis
+                        </span>
+                      ) : (
+                        <span className="text-[9px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-md font-extrabold border border-emerald-100 flex items-center gap-1">
+                          🟢 Aman
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
                 
